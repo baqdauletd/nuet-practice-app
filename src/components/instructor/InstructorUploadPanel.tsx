@@ -3,7 +3,11 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { listInstructorTestUploads } from "../../lib/test-uploads/client";
-import type { AppUserProfile, TestUpload } from "../../lib/types";
+import type {
+  AppUserProfile,
+  ExtractProblemsResponse,
+  TestUpload,
+} from "../../lib/types";
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -55,9 +59,11 @@ export function InstructorUploadPanel({
   const [uploads, setUploads] = useState<TestUpload[]>([]);
   const [isLoadingUploads, setIsLoadingUploads] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [extractingUploadId, setExtractingUploadId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [debugDetails, setDebugDetails] = useState<string | null>(null);
+  const [extractedCounts, setExtractedCounts] = useState<Record<string, number>>({});
 
   const selectedFilename = useMemo(
     () => selectedFile?.name ?? "No file selected",
@@ -103,6 +109,11 @@ export function InstructorUploadPanel({
     setSuccessMessage(null);
     setDebugDetails(null);
     setErrorMessage(validateFile(file));
+  }
+
+  async function refreshUploads() {
+    const data = await listInstructorTestUploads(profile.id);
+    setUploads(data);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -153,8 +164,7 @@ export function InstructorUploadPanel({
         return;
       }
 
-      const refreshedUploads = await listInstructorTestUploads(profile.id);
-      setUploads(refreshedUploads);
+      await refreshUploads();
       setSelectedFile(null);
       setSuccessMessage("File uploaded successfully.");
     } catch (error) {
@@ -166,6 +176,62 @@ export function InstructorUploadPanel({
       }
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  async function handleExtractProblems(uploadId: string) {
+    setExtractingUploadId(uploadId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setDebugDetails(null);
+
+    try {
+      const response = await fetch("/api/extract-problems", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uploadId }),
+      });
+
+      const payload = (await response.json()) as
+        | ({ error?: string; details?: string } & Partial<ExtractProblemsResponse>)
+        | ExtractProblemsResponse;
+
+      if (!response.ok || typeof payload.count !== "number") {
+        const message =
+          "error" in payload && payload.error
+            ? payload.error
+            : "Problem extraction failed.";
+        setErrorMessage(message);
+
+        if (
+          process.env.NODE_ENV !== "production" &&
+          "details" in payload &&
+          payload.details
+        ) {
+          setDebugDetails(payload.details);
+        }
+        return;
+      }
+
+      const count = payload.count;
+
+      setExtractedCounts((current) => ({
+        ...current,
+        [uploadId]: count,
+      }));
+      await refreshUploads();
+      setSuccessMessage(`Extracted ${count} Math problems.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Problem extraction failed.";
+      setErrorMessage(message);
+      if (process.env.NODE_ENV !== "production") {
+        setDebugDetails(message);
+      }
+    } finally {
+      setExtractingUploadId(null);
     }
   }
 
@@ -211,7 +277,7 @@ export function InstructorUploadPanel({
               {isUploading ? "Uploading..." : "Upload test file"}
             </button>
             <p className="text-sm text-slate-500">
-              AI extraction will be added in Slice 4.
+              Problem review and approval will be added in Slice 5.
             </p>
           </div>
 
@@ -273,10 +339,30 @@ export function InstructorUploadPanel({
                     <p className="mt-1 text-sm text-slate-600">
                       Stored path / URL: {upload.fileUrl}
                     </p>
+                    {typeof extractedCounts[upload.id] === "number" ? (
+                      <p className="mt-1 text-sm text-emerald-700">
+                        Extracted count: {extractedCounts[upload.id]}
+                      </p>
+                    ) : null}
                   </div>
-                  <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold tracking-[0.16em] text-slate-600 uppercase">
-                    {upload.status}
-                  </span>
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold tracking-[0.16em] text-slate-600 uppercase">
+                      {upload.status}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleExtractProblems(upload.id)}
+                      disabled={
+                        extractingUploadId === upload.id ||
+                        !["uploaded", "failed"].includes(upload.status)
+                      }
+                      className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    >
+                      {extractingUploadId === upload.id
+                        ? "Extracting..."
+                        : "Extract Math Problems"}
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
                   Uploaded: {formatDate(upload.createdAt)}

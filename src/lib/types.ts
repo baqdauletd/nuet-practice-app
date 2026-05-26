@@ -37,6 +37,20 @@ export type Problem = {
   createdAt: string | null;
 };
 
+export type ExtractedProblem = {
+  question_text: string;
+  choices: ChoiceMap | null;
+  correct_answer: string | null;
+  solution: string | null;
+  difficulty: Difficulty | null;
+  source_page: number | null;
+};
+
+export type ExtractProblemsResponse = {
+  uploadId: string;
+  count: number;
+};
+
 export type TestUpload = {
   id: string;
   instructorId: string | null;
