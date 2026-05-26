@@ -2,11 +2,7 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { uploadInstructorTestFile } from "../../lib/storage/client";
-import {
-  createTestUpload,
-  listInstructorTestUploads,
-} from "../../lib/test-uploads/client";
+import { listInstructorTestUploads } from "../../lib/test-uploads/client";
 import type { AppUserProfile, TestUpload } from "../../lib/types";
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -61,6 +57,7 @@ export function InstructorUploadPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [debugDetails, setDebugDetails] = useState<string | null>(null);
 
   const selectedFilename = useMemo(
     () => selectedFile?.name ?? "No file selected",
@@ -104,6 +101,7 @@ export function InstructorUploadPanel({
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     setSuccessMessage(null);
+    setDebugDetails(null);
     setErrorMessage(validateFile(file));
   }
 
@@ -115,6 +113,7 @@ export function InstructorUploadPanel({
     if (validationError) {
       setErrorMessage(validationError);
       setSuccessMessage(null);
+      setDebugDetails(null);
       return;
     }
 
@@ -125,26 +124,46 @@ export function InstructorUploadPanel({
     setIsUploading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setDebugDetails(null);
 
     try {
-      const storageObject = await uploadInstructorTestFile({
-        instructorId: profile.id,
-        file,
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("instructorId", profile.id);
+
+      const response = await fetch("/api/instructor/upload-test", {
+        method: "POST",
+        body: formData,
       });
 
-      const createdUpload = await createTestUpload({
-        instructorId: profile.id,
-        filePathOrUrl: storageObject.key,
-        originalFilename: file.name,
-      });
+      const payload = (await response.json()) as {
+        ok: boolean;
+        message?: string;
+        details?: string;
+      };
 
-      setUploads((current) => [createdUpload, ...current].slice(0, 10));
+      if (!response.ok || !payload.ok) {
+        setErrorMessage(
+          payload.message ? `Upload failed: ${payload.message}` : "Upload failed.",
+        );
+
+        if (process.env.NODE_ENV !== "production" && payload.details) {
+          setDebugDetails(payload.details);
+        }
+        return;
+      }
+
+      const refreshedUploads = await listInstructorTestUploads(profile.id);
+      setUploads(refreshedUploads);
       setSelectedFile(null);
       setSuccessMessage("File uploaded successfully.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to upload the file.";
-      setErrorMessage(message);
+      setErrorMessage(`Upload failed: ${message}`);
+      if (process.env.NODE_ENV !== "production") {
+        setDebugDetails(message);
+      }
     } finally {
       setIsUploading(false);
     }
@@ -206,6 +225,17 @@ export function InstructorUploadPanel({
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {errorMessage}
             </div>
+          ) : null}
+
+          {process.env.NODE_ENV !== "production" && debugDetails ? (
+            <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <summary className="cursor-pointer font-medium text-slate-900">
+                Debug details
+              </summary>
+              <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-600">
+                {debugDetails}
+              </pre>
+            </details>
           ) : null}
         </form>
       </section>

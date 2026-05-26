@@ -6,6 +6,7 @@ const publicEnvSchema = z.object({
 });
 
 const serverEnvSchema = publicEnvSchema.extend({
+  INSFORGE_SERVICE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
   OPENROUTER_API_KEY: z.string().min(1),
 });
@@ -39,6 +40,7 @@ export function getServerEnv() {
   const result = serverEnvSchema.safeParse({
     NEXT_PUBLIC_INSFORGE_URL: process.env.NEXT_PUBLIC_INSFORGE_URL,
     NEXT_PUBLIC_INSFORGE_ANON_KEY: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY,
+    INSFORGE_SERVICE_KEY: process.env.INSFORGE_SERVICE_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   });
