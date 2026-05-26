@@ -43,7 +43,9 @@ create table if not exists daily_session_problems (
   id uuid primary key default gen_random_uuid(),
   session_id uuid references daily_sessions(id) on delete cascade,
   problem_id uuid references problems(id) on delete cascade,
-  order_index int not null
+  order_index int not null,
+  unique(session_id, order_index),
+  unique(session_id, problem_id)
 );
 
 create table if not exists submissions (
