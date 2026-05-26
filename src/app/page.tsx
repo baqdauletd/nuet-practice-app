@@ -79,12 +79,23 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="flex flex-wrap items-center gap-3">
+          <Link
+            href={ROUTES.login}
+            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Login
+          </Link>
+          <p className="text-sm text-slate-600">
+            Private access only. Accounts and roles are assigned internally.
+          </p>
+        </section>
+
         <section className="grid gap-5 md:grid-cols-2">
           {upcomingAreas.map((area) => (
             <Link
               key={area.href}
               href={area.href}
-              aria-disabled="true"
               className="group rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 opacity-80 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)] transition hover:-translate-y-0.5 hover:opacity-100"
             >
               <div className="flex items-start justify-between gap-4">
