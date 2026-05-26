@@ -8,7 +8,7 @@ export default function InstructorPage() {
     <ProtectedDashboard
       requiredRole="instructor"
       title="Instructor Dashboard"
-      description="Upload source test files now. Later slices will add AI extraction and problem review."
+      description="Upload source test files, run AI extraction, and open each upload to review the extracted Math problems."
       renderContent={(profile) => <InstructorUploadPanel profile={profile} />}
     />
   );

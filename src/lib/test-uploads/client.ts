@@ -74,3 +74,24 @@ export async function listInstructorTestUploads(instructorId: string) {
 
   return (data ?? []).map((row) => toTestUpload(row as TestUploadRow));
 }
+
+export async function getInstructorTestUpload(
+  uploadId: string,
+  instructorId: string,
+) {
+  const insforge = getInsforgeClient();
+
+  // TODO: Add server-side ownership verification before real multi-user usage.
+  const { data, error } = await insforge.database
+    .from("test_uploads")
+    .select("id, instructor_id, file_url, original_filename, status, created_at")
+    .eq("id", uploadId)
+    .eq("instructor_id", instructorId)
+    .maybeSingle<TestUploadRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? toTestUpload(data) : null;
+}

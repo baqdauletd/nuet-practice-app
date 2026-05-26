@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { ROUTES } from "../../lib/constants";
 import { listInstructorTestUploads } from "../../lib/test-uploads/client";
 import type {
   AppUserProfile,
@@ -277,7 +279,7 @@ export function InstructorUploadPanel({
               {isUploading ? "Uploading..." : "Upload test file"}
             </button>
             <p className="text-sm text-slate-500">
-              Problem review and approval will be added in Slice 5.
+              AI extraction and review are now instructor-only steps.
             </p>
           </div>
 
@@ -349,6 +351,16 @@ export function InstructorUploadPanel({
                     <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold tracking-[0.16em] text-slate-600 uppercase">
                       {upload.status}
                     </span>
+                    <Link
+                      href={`${ROUTES.instructor}/uploads/${upload.id}`}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        upload.status === "extracted"
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
+                          : "border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                      }`}
+                    >
+                      Review problems
+                    </Link>
                     <button
                       type="button"
                       onClick={() => void handleExtractProblems(upload.id)}
