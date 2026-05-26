@@ -12,6 +12,8 @@ type ProtectedDashboardProps = {
   requiredRole: UserRole;
   title: string;
   description: string;
+  children?: React.ReactNode;
+  renderContent?: (profile: AppUserProfile) => React.ReactNode;
 };
 
 function getDashboardRoute(role: UserRole) {
@@ -22,6 +24,8 @@ export function ProtectedDashboard({
   requiredRole,
   title,
   description,
+  children,
+  renderContent,
 }: ProtectedDashboardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +170,8 @@ export function ProtectedDashboard({
           </div>
           <LogoutButton />
         </header>
+        {renderContent ? renderContent(profile) : null}
+        {children}
       </div>
     </main>
   );

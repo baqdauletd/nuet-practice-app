@@ -1,6 +1,7 @@
 export type UserRole = "instructor" | "student";
 
 export type Difficulty = "easy" | "medium" | "hard";
+export type UploadStatus = "uploaded" | "extracting" | "extracted" | "failed";
 
 export type ChoiceMap = Record<string, string>;
 
@@ -33,6 +34,15 @@ export type Problem = {
   difficulty: Difficulty | null;
   sourcePage: number | null;
   approved: boolean;
+  createdAt: string | null;
+};
+
+export type TestUpload = {
+  id: string;
+  instructorId: string | null;
+  fileUrl: string;
+  originalFilename: string;
+  status: UploadStatus;
   createdAt: string | null;
 };
 
