@@ -215,6 +215,14 @@ export async function getSessionProblemsForResults(
   sessionId: string,
   studentId: string,
 ) {
+  const progress = await getSessionProgress(sessionId, studentId);
+
+  if (!progress.allSubmitted || !progress.session.completed) {
+    throw new Error(
+      "Results are locked until all problems are submitted and grading is complete.",
+    );
+  }
+
   return getSessionProblemsInternal(sessionId, {
     studentId,
     includeResultsFields: true,

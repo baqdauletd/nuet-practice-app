@@ -1,8 +1,12 @@
+import { z } from "zod";
+import {
+  getCurrentServerUser,
+  requireServerProfileRole,
+} from "../../../../lib/auth/server";
 import { SOLUTION_PHOTOS_BUCKET } from "../../../../lib/constants";
 import { getInsforgeServerClient } from "../../../../lib/insforge/server";
 import {
-  getDailySessionProblemById,
-  getSessionById,
+  getOwnedSessionProblemByStudentId,
   markSessionCompletedIfAllSubmitted,
   upsertSubmission,
 } from "../../../../lib/student-sessions/server";
@@ -27,6 +31,21 @@ function normalizeAnswer(value: string) {
   return value.trim().toUpperCase();
 }
 
+const requestSchema = z.object({
+  sessionProblemId: z.string().uuid(),
+  studentId: z.string().uuid(),
+  selectedAnswer: z.enum(["A", "B", "C", "D"]),
+});
+
+function logRouteError(message: string, error: unknown, context?: object) {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(message, {
+      ...(context ?? {}),
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -35,35 +54,47 @@ export async function POST(request: Request) {
     const selectedAnswer = formData.get("selectedAnswer");
     const file = formData.get("file");
 
-    if (typeof sessionProblemId !== "string" || !sessionProblemId.trim()) {
-      return Response.json({ error: "Session problem ID is required." }, { status: 400 });
-    }
+    const parsed = requestSchema.safeParse({
+      sessionProblemId,
+      studentId,
+      selectedAnswer:
+        typeof selectedAnswer === "string"
+          ? normalizeAnswer(selectedAnswer)
+          : selectedAnswer,
+    });
 
-    if (typeof studentId !== "string" || !studentId.trim()) {
-      return Response.json({ error: "Student ID is required." }, { status: 400 });
-    }
-
-    if (typeof selectedAnswer !== "string" || !selectedAnswer.trim()) {
-      return Response.json({ error: "Selected answer is required." }, { status: 400 });
-    }
-
-    const normalizedAnswer = normalizeAnswer(selectedAnswer);
-    if (!["A", "B", "C", "D"].includes(normalizedAnswer)) {
+    if (!parsed.success) {
       return Response.json(
-        { error: "Selected answer must be A, B, C, or D." },
+        { error: "Invalid session problem, student, or selected answer." },
         { status: 400 },
       );
     }
 
-    const sessionProblem = await getDailySessionProblemById(sessionProblemId);
-    if (!sessionProblem || !sessionProblem.sessionId) {
-      return Response.json({ error: "Session problem not found." }, { status: 404 });
+    const currentServerUser = await getCurrentServerUser();
+    if (currentServerUser.available) {
+      return Response.json(
+        { error: "Server-authenticated session enforcement is not wired yet." },
+        { status: 501 },
+      );
     }
 
-    const session = await getSessionById(sessionProblem.sessionId);
-    if (!session) {
-      return Response.json({ error: "Session not found." }, { status: 404 });
+    const { sessionProblemId: safeSessionProblemId, studentId: safeStudentId, selectedAnswer: normalizedAnswer } =
+      parsed.data;
+
+    await requireServerProfileRole(safeStudentId, "student");
+
+    const ownedSessionProblem = await getOwnedSessionProblemByStudentId(
+      safeSessionProblemId,
+      safeStudentId,
+    );
+    if (!ownedSessionProblem) {
+      return Response.json(
+        { error: "Session problem not found for this student." },
+        { status: 404 },
+      );
     }
+
+    const { sessionProblem, session } = ownedSessionProblem;
 
     if (session.completed) {
       return Response.json(
@@ -91,7 +122,7 @@ export async function POST(request: Request) {
 
       const safeFilename = sanitizeFilename(file.name) || "solution-photo";
       const timestamp = Date.now();
-      const objectPath = `solution-photos/${studentId}/${sessionProblemId}/${timestamp}-${safeFilename}`;
+      const objectPath = `${safeStudentId}/${safeSessionProblemId}/${timestamp}-${safeFilename}`;
       const insforge = getInsforgeServerClient();
 
       const { data: storageObject, error: storageError } = await insforge.storage
@@ -115,17 +146,17 @@ export async function POST(request: Request) {
       solutionPhotoUrl = storageObject.key;
     }
 
-    // TODO: Add server-side auth and ownership checks before real multi-user usage.
+    // TODO: Replace client-provided studentId with a server-authenticated user id once InsForge server session API is available.
     await upsertSubmission({
-      sessionProblemId,
-      studentId,
+      sessionProblemId: safeSessionProblemId,
+      studentId: safeStudentId,
       selectedAnswer: normalizedAnswer,
       solutionPhotoUrl,
     });
 
     const allSubmitted = await markSessionCompletedIfAllSubmitted(
-      sessionProblem.sessionId,
-      studentId,
+      session.id,
+      safeStudentId,
     );
 
     return Response.json({
@@ -133,15 +164,15 @@ export async function POST(request: Request) {
       allSubmitted,
     });
   } catch (error) {
+    logRouteError("Student submit-answer failed.", error);
     const message =
       error instanceof Error ? error.message : "Unable to save the answer.";
 
     return Response.json(
       {
         error: "Unable to save the answer.",
-        details: message,
       },
-      { status: 500 },
+      { status: message === "Profile not found." || message === "Profile role must be student." ? 400 : 500 },
     );
   }
 }

@@ -15,7 +15,25 @@ function getGeminiClient() {
     return geminiClient;
   }
 
-  const { GEMINI_API_KEY } = getServerEnv();
+  let GEMINI_API_KEY: string;
+  try {
+    ({ GEMINI_API_KEY } = getServerEnv());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown server env error.";
+    if (message.includes("GEMINI_API_KEY")) {
+      throw new Error(
+        "GEMINI_API_KEY is missing. Add it to .env.local and restart the dev server.",
+      );
+    }
+
+    throw error;
+  }
+
+  if (!GEMINI_API_KEY) {
+    throw new Error(
+      "GEMINI_API_KEY is missing. Add it to .env.local and restart the dev server.",
+    );
+  }
   geminiClient = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   return geminiClient;
 }

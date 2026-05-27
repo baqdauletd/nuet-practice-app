@@ -1,15 +1,30 @@
 import { z } from "zod";
+import {
+  getCurrentServerUser,
+  requireServerProfileRole,
+} from "../../../lib/auth/server";
 import { extractMathProblemsWithGemini } from "../../../lib/ai/gemini";
 import { countProblemsForUpload, insertExtractedProblems } from "../../../lib/problems/server";
 import {
   downloadTestUploadFile,
+  getOwnedTestUpload,
   getTestUpload,
   updateTestUploadStatus,
 } from "../../../lib/test-uploads/server";
 
 const requestSchema = z.object({
   uploadId: z.string().uuid(),
+  instructorId: z.string().uuid().optional(),
 });
+
+function logRouteError(message: string, error: unknown, context?: object) {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(message, {
+      ...(context ?? {}),
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+}
 
 export async function POST(request: Request) {
   let uploadId: string | null = null;
@@ -26,13 +41,34 @@ export async function POST(request: Request) {
     }
 
     uploadId = parsed.data.uploadId;
-
-    const upload = await getTestUpload(uploadId);
-    if (!upload) {
-      return Response.json({ error: "Upload not found." }, { status: 404 });
+    const currentServerUser = await getCurrentServerUser();
+    if (currentServerUser.available) {
+      return Response.json(
+        { error: "Server-authenticated session enforcement is not wired yet." },
+        { status: 501 },
+      );
     }
 
-    // TODO: Add server-side auth and instructor ownership verification before real multi-user usage.
+    let upload;
+    if (parsed.data.instructorId) {
+      const instructorId = parsed.data.instructorId;
+      await requireServerProfileRole(instructorId, "instructor");
+      upload = await getOwnedTestUpload(uploadId, instructorId);
+    } else {
+      upload = await getTestUpload(uploadId);
+    }
+    if (!upload) {
+      return Response.json(
+        {
+          error: parsed.data.instructorId
+            ? "Upload not found for this instructor."
+            : "Upload not found.",
+        },
+        { status: 404 },
+      );
+    }
+
+    // TODO: Replace client-provided instructorId with a server-authenticated user id once InsForge server session API is available.
     await updateTestUploadStatus(uploadId, "extracting");
 
     const fileBytes = await downloadTestUploadFile(upload.fileUrl);
@@ -72,10 +108,23 @@ export async function POST(request: Request) {
 
     const message =
       error instanceof Error ? error.message : "Problem extraction failed.";
+    logRouteError("Instructor extract-problems failed.", error, { uploadId });
 
     return Response.json(
-      { error: "Problem extraction failed.", details: message },
-      { status: 500 },
+      {
+        error:
+          message === "Profile not found." ||
+          message === "Profile role must be instructor."
+            ? message
+            : "Problem extraction failed.",
+      },
+      {
+        status:
+          message === "Profile not found." ||
+          message === "Profile role must be instructor."
+            ? 400
+            : 500,
+      },
     );
   }
 }

@@ -28,6 +28,8 @@ type SetupResult = {
   warningMessage?: string;
 };
 
+const DEV_SETUP_ENABLED = process.env.NODE_ENV !== "production";
+
 function serializeDebugError(raw: unknown) {
   if (raw instanceof Error) {
     const enriched = raw as Error & {
@@ -90,6 +92,11 @@ function SetupUserCard({ role }: { role: UserRole }) {
   }
 
   async function createProfileForCurrentUser() {
+    if (!DEV_SETUP_ENABLED) {
+      setErrorMessage("Not available in production.");
+      return;
+    }
+
     let user;
 
     try {
@@ -152,6 +159,11 @@ function SetupUserCard({ role }: { role: UserRole }) {
   }
 
   async function finishProfileCreation() {
+    if (!DEV_SETUP_ENABLED) {
+      setErrorMessage("Not available in production.");
+      return;
+    }
+
     clearMessages();
 
     const verificationResult = await verifyEmailCode(email, formatOtp(verificationCode));
@@ -239,6 +251,10 @@ function SetupUserCard({ role }: { role: UserRole }) {
 
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!DEV_SETUP_ENABLED) {
+      setErrorMessage("Not available in production.");
+      return;
+    }
     setIsPending(true);
     clearMessages();
     setResult(null);
@@ -290,6 +306,10 @@ function SetupUserCard({ role }: { role: UserRole }) {
 
   async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!DEV_SETUP_ENABLED) {
+      setErrorMessage("Not available in production.");
+      return;
+    }
     setIsPending(true);
     clearMessages();
 
@@ -307,6 +327,11 @@ function SetupUserCard({ role }: { role: UserRole }) {
   }
 
   async function handleResendCode() {
+    if (!DEV_SETUP_ENABLED) {
+      setErrorMessage("Not available in production.");
+      return;
+    }
+
     setIsResending(true);
     clearMessages();
 
@@ -525,7 +550,7 @@ function SetupUserCard({ role }: { role: UserRole }) {
 }
 
 export default function DevSetupUsersPage() {
-  if (process.env.NODE_ENV === "production") {
+  if (!DEV_SETUP_ENABLED) {
     return (
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-xl rounded-[1.75rem] border border-slate-200 bg-white p-8 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">

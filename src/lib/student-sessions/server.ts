@@ -66,6 +66,39 @@ function getTodayDateString() {
   }).format(new Date());
 }
 
+function normalizeSolutionPhotoStorageKey(storageKey: string) {
+  const normalized = storageKey.trim().replace(/^\/+/, "");
+  const bucketPrefix = `${SOLUTION_PHOTOS_BUCKET}/`;
+
+  if (normalized.startsWith(bucketPrefix)) {
+    return normalized.slice(bucketPrefix.length);
+  }
+
+  return normalized;
+}
+
+function inferSolutionPhotoMimeType(storageKey: string, blobType: string) {
+  if (blobType && blobType !== "application/octet-stream" && blobType !== "binary/octet-stream") {
+    return blobType;
+  }
+
+  const normalizedKey = storageKey.toLowerCase();
+
+  if (normalizedKey.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (normalizedKey.endsWith(".jpg") || normalizedKey.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+
+  if (normalizedKey.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return blobType || "application/octet-stream";
+}
+
 function shuffleArray<T>(items: T[]) {
   const copy = [...items];
 
@@ -208,6 +241,48 @@ export async function getDailySessionProblemById(sessionProblemId: string) {
   }
 
   return data ? toDailySessionProblem(data) : null;
+}
+
+export async function getOwnedSessionByStudentId(
+  sessionId: string,
+  studentId: string,
+) {
+  const session = await getSessionById(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  if (session.studentId !== studentId) {
+    return null;
+  }
+
+  return session;
+}
+
+export async function getOwnedSessionProblemByStudentId(
+  sessionProblemId: string,
+  studentId: string,
+) {
+  const sessionProblem = await getDailySessionProblemById(sessionProblemId);
+
+  if (!sessionProblem || !sessionProblem.sessionId) {
+    return null;
+  }
+
+  const session = await getOwnedSessionByStudentId(
+    sessionProblem.sessionId,
+    studentId,
+  );
+
+  if (!session) {
+    return null;
+  }
+
+  return {
+    sessionProblem,
+    session,
+  };
 }
 
 export async function getProblemRows(problemIds: string[]) {
@@ -575,9 +650,10 @@ export async function updateSubmissionGrading(
 
 export async function downloadSolutionPhoto(storageKey: string) {
   const insforge = getInsforgeServerClient();
+  const normalizedKey = normalizeSolutionPhotoStorageKey(storageKey);
   const { data, error } = await insforge.storage
     .from(SOLUTION_PHOTOS_BUCKET)
-    .download(storageKey);
+    .download(normalizedKey);
 
   if (error) {
     throw new Error(error.message);
@@ -591,6 +667,6 @@ export async function downloadSolutionPhoto(storageKey: string) {
 
   return {
     bytes: new Uint8Array(arrayBuffer),
-    mimeType: data.type || "application/octet-stream",
+    mimeType: inferSolutionPhotoMimeType(normalizedKey, data.type),
   };
 }

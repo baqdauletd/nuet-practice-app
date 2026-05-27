@@ -193,7 +193,7 @@ export function InstructorUploadPanel({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ uploadId }),
+        body: JSON.stringify({ uploadId, instructorId: profile.id }),
       });
 
       const payload = (await response.json()) as

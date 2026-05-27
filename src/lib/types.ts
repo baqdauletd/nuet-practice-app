@@ -108,6 +108,12 @@ export type GradingFeedback = {
   mistakes: string[];
   guided_solution: string;
   optimal_solution: string;
+  debug_error?: string;
+  debug_step?:
+    | "gemini_grading"
+    | "photo_download"
+    | "json_parse"
+    | "photo_download_failed_continued_without_photo";
 };
 
 export type SessionProgress = {

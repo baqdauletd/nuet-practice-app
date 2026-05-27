@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+function getPreview(input: string) {
+  const compact = input.replace(/\s+/g, " ").trim();
+  return compact.slice(0, 220);
+}
+
 export const extractedProblemSchema = z.object({
   question_text: z.string().min(1, "question_text is required"),
   choices: z.record(z.string(), z.string()).nullable().optional().default(null),
@@ -68,6 +73,9 @@ export function parseGradingFeedback(input: string) {
   try {
     parsed = JSON.parse(jsonString);
   } catch (error) {
+    console.error("Gemini grading JSON parse failed.", {
+      preview: getPreview(input),
+    });
     const message =
       error instanceof Error ? error.message : "Unknown JSON parse error.";
     throw new Error(`AI returned invalid grading JSON: ${message}`);
@@ -75,6 +83,13 @@ export function parseGradingFeedback(input: string) {
 
   const result = gradingFeedbackSchema.safeParse(parsed);
   if (!result.success) {
+    console.error("Gemini grading schema validation failed.", {
+      preview: getPreview(input),
+      issues: result.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
     const message = result.error.issues
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join(", ");

@@ -39,6 +39,23 @@ export async function getTestUpload(uploadId: string) {
   return data ? toTestUpload(data) : null;
 }
 
+export async function getOwnedTestUpload(
+  uploadId: string,
+  instructorId: string,
+) {
+  const upload = await getTestUpload(uploadId);
+
+  if (!upload) {
+    return null;
+  }
+
+  if (upload.instructorId !== instructorId) {
+    return null;
+  }
+
+  return upload;
+}
+
 export async function updateTestUploadStatus(
   uploadId: string,
   status: UploadStatus,
