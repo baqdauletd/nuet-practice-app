@@ -9,3 +9,11 @@ export const ROUTES = {
   instructor: "/instructor",
   student: "/student",
 } as const;
+
+export function getStudentSessionProblemRoute(sessionId: string, index: number) {
+  return `${ROUTES.student}/session/${sessionId}/problem/${index}`;
+}
+
+export function getStudentSessionResultsRoute(sessionId: string) {
+  return `${ROUTES.student}/session/${sessionId}/results`;
+}

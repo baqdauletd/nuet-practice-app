@@ -13,6 +13,14 @@ export const extractionResponseSchema = z.object({
   problems: z.array(extractedProblemSchema),
 });
 
+export const gradingFeedbackSchema = z.object({
+  is_correct: z.boolean(),
+  feedback: z.string().min(1, "feedback is required"),
+  mistakes: z.array(z.string()).default([]),
+  guided_solution: z.string().min(1, "guided_solution is required"),
+  optimal_solution: z.string().min(1, "optimal_solution is required"),
+});
+
 function stripCodeFences(input: string) {
   const fencedMatch = input.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   return fencedMatch ? fencedMatch[1] : input;
@@ -48,6 +56,29 @@ export function parseExtractionResponse(input: string) {
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join(", ");
     throw new Error(`AI response failed schema validation: ${message}`);
+  }
+
+  return result.data;
+}
+
+export function parseGradingFeedback(input: string) {
+  const jsonString = extractJsonString(input);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown JSON parse error.";
+    throw new Error(`AI returned invalid grading JSON: ${message}`);
+  }
+
+  const result = gradingFeedbackSchema.safeParse(parsed);
+  if (!result.success) {
+    const message = result.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join(", ");
+    throw new Error(`AI grading response failed schema validation: ${message}`);
   }
 
   return result.data;

@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { InstructorUploadPanel } from "../../components/instructor/InstructorUploadPanel";
 import { ProtectedDashboard } from "../../components/auth/ProtectedDashboard";
 

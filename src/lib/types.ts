@@ -75,7 +75,46 @@ export type Submission = {
   studentId: string | null;
   selectedAnswer: string | null;
   solutionPhotoUrl: string | null;
-  aiFeedback: Record<string, unknown> | null;
+  aiFeedback: GradingFeedback | null;
   isCorrect: boolean | null;
   submittedAt: string | null;
+};
+
+export type DailySessionProblem = {
+  id: string;
+  sessionId: string | null;
+  problemId: string | null;
+  orderIndex: number;
+};
+
+export type SessionProblemWithProblem = {
+  id: string;
+  sessionId: string | null;
+  problemId: string | null;
+  orderIndex: number;
+  problem: Problem;
+  submission: Submission | null;
+};
+
+export type StudentSessionStatus =
+  | "not_started"
+  | "in_progress"
+  | "ready_for_grading"
+  | "completed";
+
+export type GradingFeedback = {
+  is_correct: boolean;
+  feedback: string;
+  mistakes: string[];
+  guided_solution: string;
+  optimal_solution: string;
+};
+
+export type SessionProgress = {
+  session: DailySession;
+  totalProblems: number;
+  submittedCount: number;
+  allSubmitted: boolean;
+  status: StudentSessionStatus;
+  firstIncompleteIndex: number | null;
 };
