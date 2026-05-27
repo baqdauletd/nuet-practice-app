@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { sessionProblem, session } = ownedSessionProblem;
+    const { session } = ownedSessionProblem;
 
     if (session.completed) {
       return Response.json(

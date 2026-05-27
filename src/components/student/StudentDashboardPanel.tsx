@@ -106,10 +106,14 @@ export function StudentDashboardPanel({
       const payload = await createDailySession(profile.id, problemCount);
       router.push(payload.firstProblemPath);
     } catch (error) {
-      const message =
+      const rawMessage =
         error instanceof Error
           ? error.message
           : "Unable to start today's practice.";
+      const message =
+        rawMessage === "Not enough approved problems available."
+          ? "Not enough approved problems are available yet. Ask the instructor to review and approve more Math problems first."
+          : rawMessage;
       setErrorMessage(message);
     } finally {
       setIsStarting(false);
@@ -147,7 +151,7 @@ export function StudentDashboardPanel({
               key={count}
               type="button"
               onClick={() => handlePresetSelect(count)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`min-h-12 rounded-full border px-5 py-3 text-base font-semibold transition ${
                 selectedCount === count
                   ? "border-emerald-400 bg-emerald-100 text-emerald-800"
                   : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-950"
@@ -156,7 +160,7 @@ export function StudentDashboardPanel({
               {count} problems
             </button>
           ))}
-          <label className="flex items-center gap-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700">
+          <label className="flex min-h-12 items-center gap-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700">
             <span>Custom</span>
             <input
               type="number"
@@ -167,7 +171,7 @@ export function StudentDashboardPanel({
                 setCustomCount(event.target.value);
                 setSelectedCount(Number.parseInt(event.target.value, 10) || 0);
               }}
-              className="w-20 rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              className="min-h-10 w-20 rounded-full border border-slate-200 px-3 py-1 text-base text-slate-900 outline-none focus:border-emerald-500"
             />
           </label>
         </div>
@@ -177,7 +181,7 @@ export function StudentDashboardPanel({
             type="button"
             onClick={() => void handleStartPractice()}
             disabled={isStarting}
-            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isStarting ? "Starting..." : "Start today’s practice"}
           </button>
@@ -239,7 +243,7 @@ export function StudentDashboardPanel({
                 onClick={() =>
                   router.push(getContinueProblemPath(todayProgress))
                 }
-                className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
               >
                 Continue
               </button>
@@ -250,7 +254,7 @@ export function StudentDashboardPanel({
                     getStudentSessionResultsRoute(todayProgress.session.id),
                   )
                 }
-                className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
               >
                 View results
               </button>

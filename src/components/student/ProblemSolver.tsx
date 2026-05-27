@@ -227,7 +227,8 @@ export function ProblemSolver({
           </Link>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="-mx-1 mt-6 overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2 px-1">
           {sessionProblems.map((problem) => {
             const problemNumber = problem.orderIndex + 1;
             const isCurrent = problemNumber === currentProblemNumber;
@@ -237,7 +238,7 @@ export function ProblemSolver({
               <Link
                 key={problem.id}
                 href={getStudentSessionProblemRoute(sessionId, problemNumber)}
-                className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                className={`min-h-11 min-w-11 rounded-full border px-3 py-2 text-base font-semibold transition ${
                   isCurrent
                     ? "border-emerald-400 bg-emerald-100 text-emerald-800"
                     : isSubmitted
@@ -249,11 +250,12 @@ export function ProblemSolver({
               </Link>
             );
           })}
+          </div>
         </div>
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-        <h3 className="text-xl font-semibold text-slate-950">
+        <h3 className="break-words text-xl leading-8 font-semibold text-slate-950 sm:text-2xl">
           {currentProblem.problem.questionText}
         </h3>
 
@@ -267,7 +269,7 @@ export function ProblemSolver({
             return (
               <label
                 key={choiceKey}
-                className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
+                className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 text-base leading-7 transition ${
                   selectedAnswer === choiceKey
                     ? "border-emerald-400 bg-emerald-50 text-slate-950"
                     : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
@@ -282,7 +284,7 @@ export function ProblemSolver({
                   disabled={isCompleted}
                   className="mt-1"
                 />
-                <span>
+                <span className="break-words">
                   <span className="font-semibold">{choiceKey}.</span> {choiceValue}
                 </span>
               </label>
@@ -304,7 +306,7 @@ export function ProblemSolver({
             className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
           />
           <p className="mt-3 text-sm text-slate-500">
-            Selected photo: {selectedPhoto?.name ?? "No new photo selected"}
+            Selected photo: {selectedPhoto?.name ?? "No new photo selected. On a phone, this opens your camera or gallery picker."}
           </p>
           {currentProblem.submission?.solutionPhotoUrl ? (
             <p className="mt-2 text-sm text-slate-500">
@@ -322,7 +324,7 @@ export function ProblemSolver({
           {previousIndex ? (
             <Link
               href={getStudentSessionProblemRoute(sessionId, previousIndex)}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
             >
               Previous
             </Link>
@@ -331,14 +333,14 @@ export function ProblemSolver({
             type="button"
             onClick={() => void handleSave()}
             disabled={isSaving || isCompleted}
-            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isSaving ? "Saving..." : "Save answer"}
           </button>
           {nextIndex ? (
             <Link
               href={getStudentSessionProblemRoute(sessionId, nextIndex)}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
             >
               Next
             </Link>

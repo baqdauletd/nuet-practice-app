@@ -28,15 +28,17 @@ function GradingCard({
   item: SessionProblemWithProblem;
 }) {
   const feedback = item.submission?.aiFeedback as GradingFeedback | null;
+  const usedFallbackFeedback =
+    feedback?.feedback === "AI feedback failed, but MCQ correctness was recorded.";
 
   return (
-    <article className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+    <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
             Problem {item.orderIndex + 1}
           </p>
-          <h3 className="mt-2 text-lg font-semibold text-slate-950">
+          <h3 className="mt-2 break-words text-lg leading-8 font-semibold text-slate-950">
             {item.problem.questionText}
           </h3>
         </div>
@@ -51,7 +53,7 @@ function GradingCard({
         </span>
       </div>
 
-      <div className="mt-5 grid gap-2 text-sm text-slate-700">
+      <div className="mt-5 grid gap-2 text-sm leading-7 text-slate-700">
         {(["A", "B", "C", "D"] as const).map((choiceKey) => {
           const choiceValue = getChoiceValue(item.problem.choices, choiceKey);
           if (!choiceValue) {
@@ -59,14 +61,14 @@ function GradingCard({
           }
 
           return (
-            <p key={choiceKey}>
+            <p key={choiceKey} className="break-words">
               <span className="font-semibold">{choiceKey}.</span> {choiceValue}
             </p>
           );
         })}
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">
         <p>
           <span className="font-semibold text-slate-900">Your answer:</span>{" "}
           {item.submission?.selectedAnswer ?? "No answer"}
@@ -79,12 +81,17 @@ function GradingCard({
           <span className="font-semibold text-slate-900">Feedback:</span>{" "}
           {feedback?.feedback ?? "No feedback available."}
         </p>
+        {usedFallbackFeedback ? (
+          <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            AI tutoring feedback could not be generated for this problem, but your MCQ correctness was still recorded.
+          </p>
+        ) : null}
         <div>
           <p className="font-semibold text-slate-900">Mistakes</p>
           {feedback?.mistakes?.length ? (
             <ul className="mt-2 list-disc pl-5">
               {feedback.mistakes.map((mistake) => (
-                <li key={mistake}>{mistake}</li>
+                <li key={mistake} className="break-words">{mistake}</li>
               ))}
             </ul>
           ) : (
@@ -221,7 +228,7 @@ export function ResultsPanel({
 
   if (isLoading) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
         <p className="text-sm text-slate-600">Loading results...</p>
       </section>
     );
@@ -258,7 +265,7 @@ export function ResultsPanel({
         <div className="mt-6">
           <Link
             href={getContinueProblemPath(progress)}
-            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
           >
             Continue solving
           </Link>
@@ -269,7 +276,7 @@ export function ResultsPanel({
 
   if (!progress.session.completed) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
         <h2 className="text-2xl font-semibold text-slate-950">
           All problems submitted
         </h2>
@@ -282,13 +289,13 @@ export function ResultsPanel({
             type="button"
             onClick={() => void handleGradeSession()}
             disabled={isGrading}
-            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isGrading ? "Generating..." : "Generate AI Feedback"}
           </button>
           <Link
             href={getContinueProblemPath(progress)}
-            className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+            className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
           >
             Review submissions
           </Link>
@@ -304,7 +311,7 @@ export function ResultsPanel({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-950">
@@ -317,7 +324,7 @@ export function ResultsPanel({
           </div>
           <Link
             href={getStudentSessionResultsRoute(sessionId)}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+            className="min-h-12 rounded-full border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
           >
             Refresh results
           </Link>

@@ -53,7 +53,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
+    <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
       <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="rounded-[2rem] border border-white/60 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(236,253,245,0.96))] p-8 shadow-[0_30px_100px_-50px_rgba(15,23,42,0.45)] sm:p-10">
           <p className="text-sm font-semibold tracking-[0.18em] text-emerald-700 uppercase">
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
+                className="min-h-12 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
               />
             </div>
 
@@ -115,14 +115,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
+                className="min-h-12 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
               />
             </div>
 
             <button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+              className="min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
             >
               {isPending ? "Signing in..." : "Sign in"}
             </button>
