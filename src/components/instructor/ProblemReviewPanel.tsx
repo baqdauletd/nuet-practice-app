@@ -15,7 +15,10 @@ import {
   setProblemApproval,
   updateProblem,
 } from "../../lib/problems/client";
-import { getInstructorTestUpload } from "../../lib/test-uploads/client";
+import {
+  getInstructorTestUpload,
+  updateInstructorTestUpload,
+} from "../../lib/test-uploads/client";
 import type {
   AppUserProfile,
   Difficulty,
@@ -139,7 +142,7 @@ function ProblemPreview({
 
                 return (
                   <div
-                    key={`${index}-${choice.label}-${choice.text}`}
+                    key={`preview-choice-${index}`}
                     className={`rounded-2xl border px-4 py-3 ${
                       isCorrect
                         ? "border-emerald-200 bg-emerald-50"
@@ -400,7 +403,7 @@ function ProblemEditorCard({
                 <div className="mt-3 grid gap-4">
                   {draft.choices.map((choice, index) => (
                     <div
-                      key={`${index}-${choice.label}-${choice.text}`}
+                      key={`edit-choice-${index}`}
                       className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                     >
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.3fr)_minmax(0,1fr)_auto]">
@@ -619,6 +622,9 @@ export function ProblemReviewPanel({
   const [upload, setUpload] = useState<TestUpload | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [uploadNameDraft, setUploadNameDraft] = useState("");
+  const [isSavingUploadName, setIsSavingUploadName] = useState(false);
+  const [uploadNameMessage, setUploadNameMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -646,6 +652,7 @@ export function ProblemReviewPanel({
         }
 
         setUpload(uploadData);
+        setUploadNameDraft(uploadData.originalFilename);
         setProblems(problemsData);
       } catch (error) {
         if (!isActive) {
@@ -678,12 +685,42 @@ export function ProblemReviewPanel({
   const totalCount = problems.length;
   const pendingCount = totalCount - approvedCount;
 
+  function getUploadFileRoute(targetUploadId: string) {
+    return `/api/instructor/uploads/${targetUploadId}/file?instructorId=${encodeURIComponent(profile.id)}`;
+  }
+
   function handleProblemUpdated(updatedProblem: Problem) {
     setProblems((current) =>
       current.map((problem) =>
         problem.id === updatedProblem.id ? updatedProblem : problem,
       ),
     );
+  }
+
+  async function handleUploadRename() {
+    if (!upload) {
+      return;
+    }
+
+    setIsSavingUploadName(true);
+    setUploadNameMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const updated = await updateInstructorTestUpload(upload.id, profile.id, {
+        originalFilename: uploadNameDraft.trim(),
+      });
+
+      setUpload(updated);
+      setUploadNameDraft(updated.originalFilename);
+      setUploadNameMessage("Upload name updated.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to rename the upload.";
+      setErrorMessage(message);
+    } finally {
+      setIsSavingUploadName(false);
+    }
   }
 
   if (isLoading) {
@@ -734,6 +771,45 @@ export function ProblemReviewPanel({
             >
               Back to instructor dashboard
             </Link>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a
+                href={getUploadFileRoute(upload.id)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              >
+                Open uploaded file
+              </a>
+            </div>
+            <div className="mt-4 grid gap-3">
+              <label
+                htmlFor="upload-name"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Upload name
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  id="upload-name"
+                  type="text"
+                  value={uploadNameDraft}
+                  onChange={(event) => setUploadNameDraft(event.target.value)}
+                  className="w-full rounded-full border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleUploadRename()}
+                  disabled={
+                    isSavingUploadName ||
+                    uploadNameDraft.trim() === "" ||
+                    uploadNameDraft.trim() === upload.originalFilename
+                  }
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isSavingUploadName ? "Saving..." : "Save name"}
+                </button>
+              </div>
+            </div>
             <h2 className="mt-3 text-2xl font-semibold text-slate-950">
               {upload.originalFilename}
             </h2>
@@ -777,6 +853,12 @@ export function ProblemReviewPanel({
         <p className="mt-6 text-sm font-medium text-slate-600">
           {totalCount} extracted · {approvedCount} approved · {pendingCount} pending
         </p>
+
+        {uploadNameMessage ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {uploadNameMessage}
+          </div>
+        ) : null}
       </section>
 
       {problems.length === 0 ? (

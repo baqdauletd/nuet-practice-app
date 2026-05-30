@@ -23,6 +23,10 @@ function toTestUpload(row: TestUploadRow): TestUpload {
   };
 }
 
+type TestUploadUpdates = {
+  originalFilename?: string;
+};
+
 export async function createTestUpload({
   instructorId,
   filePathOrUrl,
@@ -94,4 +98,35 @@ export async function getInstructorTestUpload(
   }
 
   return data ? toTestUpload(data) : null;
+}
+
+export async function updateInstructorTestUpload(
+  uploadId: string,
+  instructorId: string,
+  updates: TestUploadUpdates,
+) {
+  const insforge = getInsforgeClient();
+  const row: Record<string, unknown> = {};
+
+  if ("originalFilename" in updates) {
+    row.original_filename = updates.originalFilename;
+  }
+
+  const { data, error } = await insforge.database
+    .from("test_uploads")
+    .update(row)
+    .eq("id", uploadId)
+    .eq("instructor_id", instructorId)
+    .select("id, instructor_id, file_url, original_filename, status, created_at")
+    .single<TestUploadRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("Updating the upload returned no data.");
+  }
+
+  return toTestUpload(data);
 }
