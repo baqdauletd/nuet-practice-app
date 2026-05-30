@@ -4,7 +4,10 @@ Rules:
 - Extract only Math problems.
 - Ignore Biology, Physics, Chemistry, Reading, and non-Math sections.
 - Preserve the original question wording as closely as possible.
-- Preserve MCQ choices exactly when they are visible.
+- Preserve all MCQ choices exactly when they are visible.
+- Do not assume choices stop at A, B, C, and D.
+- Use the original choice labels from the source file whenever they are present, including labels like E, F, 1, 2, or other visible markers.
+- If a problem has choices but the source does not clearly label them, generate stable labels like A, B, C, D in order.
 - If the correct answer is visible, include it.
 - If the correct answer is not visible, solve the problem and provide the most likely answer.
 - Include a clear solution explanation for each extracted problem.
@@ -19,7 +22,8 @@ Return JSON in this shape:
         "A": "...",
         "B": "...",
         "C": "...",
-        "D": "..."
+        "D": "...",
+        "E": "..."
       },
       "correct_answer": "A",
       "solution": "...",
@@ -55,6 +59,11 @@ Tasks:
 Important grading rule:
 - MCQ correctness is determined primarily by comparing selected_answer with correct_answer.
 - Your notebook-photo analysis is tutoring feedback, not the final source of correctness.
+- Keep each field concise and easy for a student to read on a phone screen.
+- Write "feedback" as a short paragraph.
+- Return "mistakes" as an array of short bullet-style strings.
+- Write "guided_solution" as a clear numbered sequence of steps in one string, using line breaks between steps when possible.
+- Write "optimal_solution" as a concise explanation of the fastest or cleanest method.
 
 Return only valid JSON in this shape:
 {

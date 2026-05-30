@@ -28,13 +28,13 @@ function sanitizeFilename(filename: string) {
 }
 
 function normalizeAnswer(value: string) {
-  return value.trim().toUpperCase();
+  return value.trim();
 }
 
 const requestSchema = z.object({
   sessionProblemId: z.string().uuid(),
   studentId: z.string().uuid(),
-  selectedAnswer: z.enum(["A", "B", "C", "D"]),
+  selectedAnswer: z.string().trim().min(1),
 });
 
 function logRouteError(message: string, error: unknown, context?: object) {

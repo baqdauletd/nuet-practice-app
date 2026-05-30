@@ -29,7 +29,7 @@ function logRouteError(message: string, error: unknown, context?: object) {
 }
 
 function normalizeAnswer(value: string | null) {
-  return value?.trim().toUpperCase() ?? "";
+  return value?.trim() ?? "";
 }
 
 function createFallbackFeedback(isCorrect: boolean): GradingFeedback {

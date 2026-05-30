@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormattedText } from "../shared/FormattedText";
+import { getChoiceEntries } from "../../lib/choices";
 import {
   getSessionProgress,
   getSessionProblems,
@@ -25,13 +27,6 @@ const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/webp",
 ]);
-
-function getChoiceValue(
-  choices: Record<string, string> | null,
-  key: "A" | "B" | "C" | "D",
-) {
-  return typeof choices?.[key] === "string" ? choices[key] : "";
-}
 
 function validatePhoto(file: File | null) {
   if (!file) {
@@ -123,8 +118,12 @@ export function ProblemSolver({
       return;
     }
 
-    const normalizedAnswer = selectedAnswer.trim().toUpperCase();
-    if (!["A", "B", "C", "D"].includes(normalizedAnswer)) {
+    const normalizedAnswer = selectedAnswer.trim();
+    const choiceLabels = getChoiceEntries(currentProblem.problem.choices).map((choice) =>
+      choice.label.trim(),
+    );
+
+    if (!choiceLabels.includes(normalizedAnswer)) {
       setErrorMessage("Choose one answer before saving.");
       return;
     }
@@ -255,22 +254,21 @@ export function ProblemSolver({
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-        <h3 className="break-words text-xl leading-8 font-semibold text-slate-950 sm:text-2xl">
-          {currentProblem.problem.questionText}
-        </h3>
+        <div className="break-words text-xl leading-8 font-semibold text-slate-950 sm:text-2xl">
+          <FormattedText
+            text={currentProblem.problem.questionText}
+            emptyText="Question text is missing."
+            className="text-xl leading-8 font-semibold text-slate-950 sm:text-2xl"
+          />
+        </div>
 
         <div className="mt-6 grid gap-3">
-          {(["A", "B", "C", "D"] as const).map((choiceKey) => {
-            const choiceValue = getChoiceValue(currentProblem.problem.choices, choiceKey);
-            if (!choiceValue) {
-              return null;
-            }
-
+          {getChoiceEntries(currentProblem.problem.choices).map((choice) => {
             return (
               <label
-                key={choiceKey}
+                key={`${choice.label}-${choice.text}`}
                 className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 text-base leading-7 transition ${
-                  selectedAnswer === choiceKey
+                  selectedAnswer === choice.label
                     ? "border-emerald-400 bg-emerald-50 text-slate-950"
                     : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
                 }`}
@@ -278,15 +276,20 @@ export function ProblemSolver({
                 <input
                   type="radio"
                   name={`selected-answer-${currentProblem.id}`}
-                  value={choiceKey}
-                  checked={selectedAnswer === choiceKey}
+                  value={choice.label}
+                  checked={selectedAnswer === choice.label}
                   onChange={(event) => setSelectedAnswer(event.target.value)}
                   disabled={isCompleted}
                   className="mt-1"
                 />
-                <span className="break-words">
-                  <span className="font-semibold">{choiceKey}.</span> {choiceValue}
-                </span>
+                <div className="min-w-0 break-words">
+                  <span className="font-semibold">{choice.label}.</span>
+                  <FormattedText
+                    text={choice.text}
+                    emptyText="Choice text is missing."
+                    className="mt-1"
+                  />
+                </div>
               </label>
             );
           })}

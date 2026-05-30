@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { FormattedText } from "../shared/FormattedText";
+import { getChoiceEntries } from "../../lib/choices";
+import { formatAiText } from "../../lib/formatting";
 import {
   getContinueProblemPath,
   getSessionProgress,
@@ -15,11 +19,81 @@ import type {
 } from "../../lib/types";
 import { getStudentSessionResultsRoute } from "../../lib/constants";
 
-function getChoiceValue(
-  choices: Record<string, string> | null,
-  key: "A" | "B" | "C" | "D",
-) {
-  return typeof choices?.[key] === "string" ? choices[key] : "";
+function DashboardButton({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <Link
+      href="/student"
+      className={`inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 ${className}`.trim()}
+    >
+      Back to Dashboard
+    </Link>
+  );
+}
+
+function StructuredText({
+  text,
+  emptyText,
+  ordered = false,
+}: {
+  text: string | null | undefined;
+  emptyText: string;
+  ordered?: boolean;
+}) {
+  const formatted = formatAiText(text);
+
+  if (!formatted) {
+    return <p className="break-words text-sm leading-7 text-slate-600">{emptyText}</p>;
+  }
+
+  if (ordered && formatted.kind === "steps") {
+    return (
+      <ol className="grid gap-3 pl-5 text-sm leading-7 text-slate-700 marker:font-semibold marker:text-slate-500">
+        {formatted.items.map((item, index) => (
+          <li key={`${index}-${item}`} className="break-words">
+            {item}
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 text-sm leading-7 text-slate-700">
+      {formatted.items.map((item, index) => (
+        <p key={`${index}-${item}`} className="break-words whitespace-pre-wrap">
+          {item}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function FeedbackSection({
+  title,
+  children,
+  tone = "default",
+}: {
+  title: string;
+  children: ReactNode;
+  tone?: "default" | "accent";
+}) {
+  const toneClasses =
+    tone === "accent"
+      ? "border-sky-200 bg-sky-50/80"
+      : "border-slate-200 bg-white/80";
+
+  return (
+    <section className={`rounded-2xl border p-4 sm:p-5 ${toneClasses}`}>
+      <h4 className="text-sm font-semibold tracking-[0.14em] text-slate-500 uppercase">
+        {title}
+      </h4>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
 }
 
 function GradingCard({
@@ -32,18 +106,22 @@ function GradingCard({
     feedback?.feedback === "AI feedback failed, but MCQ correctness was recorded.";
 
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-6">
+    <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
             Problem {item.orderIndex + 1}
           </p>
-          <h3 className="mt-2 break-words text-lg leading-8 font-semibold text-slate-950">
-            {item.problem.questionText}
-          </h3>
+          <div className="mt-2">
+            <FormattedText
+              text={item.problem.questionText}
+              emptyText="Question text is missing."
+              className="text-base leading-7 font-semibold text-slate-950 sm:text-lg sm:leading-8"
+            />
+          </div>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold tracking-[0.14em] uppercase ${
+          className={`shrink-0 self-start rounded-full px-3 py-1 text-xs font-semibold tracking-[0.14em] uppercase ${
             item.submission?.isCorrect
               ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border border-rose-200 bg-rose-50 text-rose-700"
@@ -54,21 +132,21 @@ function GradingCard({
       </div>
 
       <div className="mt-5 grid gap-2 text-sm leading-7 text-slate-700">
-        {(["A", "B", "C", "D"] as const).map((choiceKey) => {
-          const choiceValue = getChoiceValue(item.problem.choices, choiceKey);
-          if (!choiceValue) {
-            return null;
-          }
-
+        {getChoiceEntries(item.problem.choices).map((choice) => {
           return (
-            <p key={choiceKey} className="break-words">
-              <span className="font-semibold">{choiceKey}.</span> {choiceValue}
-            </p>
+            <div key={`${choice.label}-${choice.text}`} className="break-words">
+              <span className="font-semibold">{choice.label}.</span>
+              <FormattedText
+                text={choice.text}
+                emptyText="Choice text is missing."
+                className="mt-1"
+              />
+            </div>
           );
         })}
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700 sm:p-5">
         <p>
           <span className="font-semibold text-slate-900">Your answer:</span>{" "}
           {item.submission?.selectedAnswer ?? "No answer"}
@@ -77,35 +155,51 @@ function GradingCard({
           <span className="font-semibold text-slate-900">Correct answer:</span>{" "}
           {item.problem.correctAnswer ?? "Unknown"}
         </p>
-        <p>
-          <span className="font-semibold text-slate-900">Feedback:</span>{" "}
-          {feedback?.feedback ?? "No feedback available."}
-        </p>
         {usedFallbackFeedback ? (
           <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             AI tutoring feedback could not be generated for this problem, but your MCQ correctness was still recorded.
           </p>
         ) : null}
-        <div>
-          <p className="font-semibold text-slate-900">Mistakes</p>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        <FeedbackSection title="Feedback">
+          <StructuredText
+            text={feedback?.feedback}
+            emptyText="No feedback available."
+          />
+        </FeedbackSection>
+
+        <FeedbackSection title="Mistakes">
           {feedback?.mistakes?.length ? (
-            <ul className="mt-2 list-disc pl-5">
-              {feedback.mistakes.map((mistake) => (
-                <li key={mistake} className="break-words">{mistake}</li>
+            <ul className="grid gap-2 pl-5 text-sm leading-7 text-slate-700">
+              {feedback.mistakes.map((mistake, index) => (
+                <li key={`${index}-${mistake}`} className="break-words list-disc">
+                  {mistake}
+                </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-2">No specific mistakes recorded.</p>
+            <p className="break-words text-sm leading-7 text-slate-600">
+              No specific mistakes recorded.
+            </p>
           )}
-        </div>
-        <p>
-          <span className="font-semibold text-slate-900">Guided solution:</span>{" "}
-          {feedback?.guided_solution ?? "No guided solution available."}
-        </p>
-        <p>
-          <span className="font-semibold text-slate-900">Optimal solution:</span>{" "}
-          {feedback?.optimal_solution ?? "No optimal solution available."}
-        </p>
+        </FeedbackSection>
+
+        <FeedbackSection title="Guided Solution">
+          <StructuredText
+            text={feedback?.guided_solution}
+            emptyText="No guided solution available."
+            ordered
+          />
+        </FeedbackSection>
+
+        <FeedbackSection title="Optimal / Faster Method" tone="accent">
+          <StructuredText
+            text={feedback?.optimal_solution}
+            emptyText="No optimal solution available."
+          />
+        </FeedbackSection>
       </div>
     </article>
   );
@@ -229,6 +323,7 @@ export function ResultsPanel({
   if (isLoading) {
     return (
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
+        <DashboardButton className="mb-4" />
         <p className="text-sm text-slate-600">Loading results...</p>
       </section>
     );
@@ -237,6 +332,7 @@ export function ResultsPanel({
   if (errorMessage && !progress) {
     return (
       <section className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+        <DashboardButton className="mb-4" />
         <h2 className="text-2xl font-semibold text-slate-950">
           We could not load these results.
         </h2>
@@ -252,6 +348,7 @@ export function ResultsPanel({
   if (!progress.allSubmitted) {
     return (
       <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+        <DashboardButton className="mb-4" />
         <h2 className="text-2xl font-semibold text-slate-950">
           Results are locked
         </h2>
@@ -262,10 +359,10 @@ export function ResultsPanel({
         <p className="mt-4 text-sm font-medium text-slate-800">
           Progress: {progress.submittedCount} / {progress.totalProblems}
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href={getContinueProblemPath(progress)}
-            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
           >
             Continue solving
           </Link>
@@ -277,6 +374,7 @@ export function ResultsPanel({
   if (!progress.session.completed) {
     return (
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
+        <DashboardButton className="mb-4" />
         <h2 className="text-2xl font-semibold text-slate-950">
           All problems submitted
         </h2>
@@ -314,6 +412,7 @@ export function ResultsPanel({
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
+            <DashboardButton className="mb-4" />
             <h2 className="text-2xl font-semibold text-slate-950">
               Session results
             </h2>
@@ -364,6 +463,10 @@ export function ResultsPanel({
         {problems.map((item) => (
           <GradingCard key={item.id} item={item} />
         ))}
+      </div>
+
+      <div className="flex justify-start">
+        <DashboardButton />
       </div>
     </div>
   );
