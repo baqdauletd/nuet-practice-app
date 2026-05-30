@@ -36,6 +36,7 @@ type ProblemRow = {
   upload_id: string | null;
   subject: string;
   question_text: string;
+  source_image_url: string | null;
   choices: Record<string, string> | null;
   correct_answer: string | null;
   ai_solution: string | null;
@@ -136,6 +137,7 @@ function toProblem(row: ProblemRow): Problem {
     uploadId: row.upload_id,
     subject: row.subject,
     questionText: row.question_text,
+    sourceImageUrl: row.source_image_url ?? null,
     choices: row.choices,
     correctAnswer: row.correct_answer,
     aiSolution: row.ai_solution,
@@ -294,7 +296,7 @@ export async function getProblemRows(problemIds: string[]) {
   const { data, error } = await insforge.database
     .from("problems")
     .select(
-      "id, upload_id, subject, question_text, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
     )
     .in("id", problemIds);
 

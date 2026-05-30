@@ -66,6 +66,9 @@ const extractionResponseJsonSchema = {
           solution: {
             anyOf: [{ type: "string" }, { type: "null" }],
           },
+          needs_visual_reference: {
+            anyOf: [{ type: "boolean" }, { type: "null" }],
+          },
           difficulty: {
             anyOf: [
               { type: "string", enum: ["easy", "medium", "hard"] },

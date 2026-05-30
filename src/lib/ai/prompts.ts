@@ -8,6 +8,8 @@ Rules:
 - Do not assume choices stop at A, B, C, and D.
 - Use the original choice labels from the source file whenever they are present, including labels like E, F, 1, 2, or other visible markers.
 - If a problem has choices but the source does not clearly label them, generate stable labels like A, B, C, D in order.
+- If a problem depends on a geometry figure, graph, diagram, table, or other visual context from the source page, set "needs_visual_reference" to true.
+- Set "needs_visual_reference" to false for plain text-only problems.
 - If the correct answer is visible, include it.
 - If the correct answer is not visible, solve the problem and provide the most likely answer.
 - Include a clear solution explanation for each extracted problem.
@@ -27,6 +29,7 @@ Return JSON in this shape:
       },
       "correct_answer": "A",
       "solution": "...",
+      "needs_visual_reference": true,
       "difficulty": "easy",
       "source_page": 1
     }

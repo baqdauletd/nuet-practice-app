@@ -14,7 +14,7 @@ function renderKatex(expression: string, displayMode: boolean) {
     return katex.renderToString(expression.trim(), {
       displayMode,
       output: "html",
-      throwOnError: false,
+      throwOnError: true,
       strict: "ignore",
       trust: false,
     });
@@ -38,6 +38,16 @@ function stripMathDelimiters(value: string) {
 function looksLikeStandaloneMath(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
+    return false;
+  }
+
+  if (
+    trimmed.includes("$") ||
+    trimmed.includes("\\(") ||
+    trimmed.includes("\\)") ||
+    trimmed.includes("\\[") ||
+    trimmed.includes("\\]")
+  ) {
     return false;
   }
 
@@ -82,8 +92,14 @@ function DisplayMath({
 
 function renderLine(line: string) {
   const trimmed = line.trim();
+  const hasExplicitMathDelimiters =
+    trimmed.includes("$") ||
+    trimmed.includes("\\(") ||
+    trimmed.includes("\\)") ||
+    trimmed.includes("\\[") ||
+    trimmed.includes("\\]");
 
-  if (looksLikeStandaloneMath(trimmed)) {
+  if (!hasExplicitMathDelimiters && looksLikeStandaloneMath(trimmed)) {
     return (
       <span className="block overflow-x-auto py-1">
         <DisplayMath expression={trimmed} />
@@ -107,6 +123,12 @@ function renderLine(line: string) {
     }
 
     const expression = stripMathDelimiters(part);
+    const html = renderKatex(expression, false);
+
+    if (!html) {
+      return <span key={`${index}-${part}`}>{part}</span>;
+    }
+
     return <InlineMath key={`${index}-${part}`} expression={expression} />;
   });
 }

@@ -8,6 +8,7 @@ type ProblemRow = {
   upload_id: string | null;
   subject: string;
   question_text: string;
+  source_image_url: string | null;
   choices: Record<string, string> | null;
   correct_answer: string | null;
   ai_solution: string | null;
@@ -23,6 +24,7 @@ function toProblem(row: ProblemRow): Problem {
     uploadId: row.upload_id,
     subject: row.subject,
     questionText: row.question_text,
+    sourceImageUrl: row.source_image_url,
     choices: row.choices,
     correctAnswer: row.correct_answer,
     aiSolution: row.ai_solution,
@@ -31,6 +33,23 @@ function toProblem(row: ProblemRow): Problem {
     approved: row.approved,
     createdAt: row.created_at,
   };
+}
+
+export async function getProblemById(problemId: string) {
+  const insforge = getInsforgeServerClient();
+  const { data, error } = await insforge.database
+    .from("problems")
+    .select(
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+    )
+    .eq("id", problemId)
+    .maybeSingle<ProblemRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? toProblem(data) : null;
 }
 
 export async function insertExtractedProblems(
@@ -46,6 +65,7 @@ export async function insertExtractedProblems(
     upload_id: uploadId,
     subject: "math",
     question_text: problem.question_text,
+    source_image_url: null,
     choices: problem.choices,
     correct_answer: problem.correct_answer,
     ai_solution: problem.solution,
@@ -58,7 +78,7 @@ export async function insertExtractedProblems(
     .from("problems")
     .insert(rows)
     .select(
-      "id, upload_id, subject, question_text, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
     );
 
   if (error) {
@@ -66,6 +86,21 @@ export async function insertExtractedProblems(
   }
 
   return (data ?? []).map((row) => toProblem(row as ProblemRow));
+}
+
+export async function updateProblemSourceImage(
+  problemId: string,
+  sourceImageUrl: string | null,
+) {
+  const insforge = getInsforgeServerClient();
+  const { error } = await insforge.database
+    .from("problems")
+    .update({ source_image_url: sourceImageUrl ?? null })
+    .eq("id", problemId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function countProblemsForUpload(uploadId: string) {
@@ -87,7 +122,7 @@ export async function listProblemsForUpload(uploadId: string) {
   const { data, error } = await insforge.database
     .from("problems")
     .select(
-      "id, upload_id, subject, question_text, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
     )
     .eq("upload_id", uploadId)
     .order("source_page", { ascending: true });

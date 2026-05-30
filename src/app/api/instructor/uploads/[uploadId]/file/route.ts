@@ -7,33 +7,12 @@ import {
   downloadTestUploadFile,
   getOwnedTestUpload,
 } from "../../../../../../lib/test-uploads/server";
+import { resolveUploadMimeType } from "../../../../../../lib/problem-source-images/server";
 
 const requestSchema = z.object({
   uploadId: z.string().uuid(),
   instructorId: z.string().uuid(),
 });
-
-function inferMimeType(filename: string) {
-  const normalized = filename.toLowerCase();
-
-  if (normalized.endsWith(".pdf")) {
-    return "application/pdf";
-  }
-
-  if (normalized.endsWith(".png")) {
-    return "image/png";
-  }
-
-  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) {
-    return "image/jpeg";
-  }
-
-  if (normalized.endsWith(".webp")) {
-    return "image/webp";
-  }
-
-  return "application/octet-stream";
-}
 
 function sanitizeFilename(filename: string) {
   return filename.replace(/[\r\n"]/g, "_");
@@ -81,7 +60,11 @@ export async function GET(
     }
 
     const fileBytes = await downloadTestUploadFile(upload.fileUrl);
-    const mimeType = inferMimeType(upload.originalFilename);
+    const mimeType = resolveUploadMimeType({
+      displayName: upload.originalFilename,
+      storageKey: upload.fileUrl,
+      bytes: fileBytes,
+    });
     const filename = sanitizeFilename(upload.originalFilename);
 
     return new Response(fileBytes, {

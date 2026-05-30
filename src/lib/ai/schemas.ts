@@ -10,6 +10,7 @@ export const extractedProblemSchema = z.object({
   choices: z.record(z.string(), z.string()).nullable().optional().default(null),
   correct_answer: z.string().nullable().optional().default(null),
   solution: z.string().nullable().optional().default(null),
+  needs_visual_reference: z.boolean().nullable().optional().default(false),
   difficulty: z.enum(["easy", "medium", "hard"]).nullable().optional().default(null),
   source_page: z.number().int().nullable().optional().default(null),
 });

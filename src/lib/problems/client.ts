@@ -8,6 +8,7 @@ type ProblemRow = {
   upload_id: string | null;
   subject: string;
   question_text: string;
+  source_image_url: string | null;
   choices: Record<string, string> | null;
   correct_answer: string | null;
   ai_solution: string | null;
@@ -19,6 +20,7 @@ type ProblemRow = {
 
 type ProblemUpdates = {
   questionText?: string;
+  sourceImageUrl?: string | null;
   choices?: ChoiceMap | null;
   correctAnswer?: string | null;
   aiSolution?: string | null;
@@ -32,6 +34,7 @@ function toProblem(row: ProblemRow): Problem {
     uploadId: row.upload_id,
     subject: row.subject,
     questionText: row.question_text,
+    sourceImageUrl: row.source_image_url,
     choices: row.choices,
     correctAnswer: row.correct_answer,
     aiSolution: row.ai_solution,
@@ -47,6 +50,10 @@ function toProblemUpdateRow(updates: ProblemUpdates) {
 
   if ("questionText" in updates) {
     row.question_text = updates.questionText;
+  }
+
+  if ("sourceImageUrl" in updates) {
+    row.source_image_url = updates.sourceImageUrl ?? null;
   }
 
   if ("choices" in updates) {
@@ -78,7 +85,7 @@ export async function listProblemsForUpload(uploadId: string) {
   const { data, error } = await insforge.database
     .from("problems")
     .select(
-      "id, upload_id, subject, question_text, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
     )
     .eq("upload_id", uploadId)
     .order("source_page", { ascending: true })
@@ -99,7 +106,7 @@ export async function updateProblem(problemId: string, updates: ProblemUpdates) 
     .update(toProblemUpdateRow(updates))
     .eq("id", problemId)
     .select(
-      "id, upload_id, subject, question_text, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
+      "id, upload_id, subject, question_text, source_image_url, choices, correct_answer, ai_solution, difficulty, source_page, approved, created_at",
     )
     .single<ProblemRow>();
 

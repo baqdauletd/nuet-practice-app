@@ -20,6 +20,7 @@ create table if not exists problems (
   upload_id uuid references test_uploads(id) on delete cascade,
   subject text not null default 'math',
   question_text text not null,
+  source_image_url text,
   choices jsonb,
   correct_answer text,
   ai_solution text,

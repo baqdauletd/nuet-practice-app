@@ -4,7 +4,15 @@ import {
   requireServerProfileRole,
 } from "../../../lib/auth/server";
 import { extractMathProblemsWithGemini } from "../../../lib/ai/gemini";
-import { countProblemsForUpload, insertExtractedProblems } from "../../../lib/problems/server";
+import {
+  countProblemsForUpload,
+  insertExtractedProblems,
+  updateProblemSourceImage,
+} from "../../../lib/problems/server";
+import {
+  createProblemSourceImage,
+  resolveUploadMimeType,
+} from "../../../lib/problem-source-images/server";
 import {
   downloadTestUploadFile,
   getOwnedTestUpload,
@@ -72,16 +80,11 @@ export async function POST(request: Request) {
     await updateTestUploadStatus(uploadId, "extracting");
 
     const fileBytes = await downloadTestUploadFile(upload.fileUrl);
-    const mimeType = upload.originalFilename.toLowerCase().endsWith(".pdf")
-      ? "application/pdf"
-      : upload.originalFilename.toLowerCase().endsWith(".png")
-        ? "image/png"
-        : upload.originalFilename.toLowerCase().endsWith(".jpg") ||
-            upload.originalFilename.toLowerCase().endsWith(".jpeg")
-          ? "image/jpeg"
-          : upload.originalFilename.toLowerCase().endsWith(".webp")
-            ? "image/webp"
-            : "application/octet-stream";
+    const mimeType = resolveUploadMimeType({
+      displayName: upload.originalFilename,
+      storageKey: upload.fileUrl,
+      bytes: fileBytes,
+    });
 
     const extractedProblems = await extractMathProblemsWithGemini({
       bytes: fileBytes,
@@ -89,7 +92,35 @@ export async function POST(request: Request) {
       filename: upload.originalFilename,
     });
 
-    await insertExtractedProblems(uploadId, extractedProblems);
+    const insertedProblems = await insertExtractedProblems(uploadId, extractedProblems);
+
+    const snapshotKeysByPage = new Map<number, string | null>();
+
+    for (const [index, problem] of extractedProblems.entries()) {
+      const insertedProblem = insertedProblems[index];
+      if (!insertedProblem || !problem.needs_visual_reference) {
+        continue;
+      }
+
+      const pageNumber = problem.source_page ?? 1;
+      let sourceImageUrl = snapshotKeysByPage.get(pageNumber);
+
+      if (sourceImageUrl === undefined) {
+        sourceImageUrl = await createProblemSourceImage({
+          uploadId,
+          uploadBytes: fileBytes,
+          uploadFilename: upload.originalFilename,
+          uploadStorageKey: upload.fileUrl,
+          sourcePage: pageNumber,
+        });
+        snapshotKeysByPage.set(pageNumber, sourceImageUrl);
+      }
+
+      if (sourceImageUrl) {
+        await updateProblemSourceImage(insertedProblem.id, sourceImageUrl);
+      }
+    }
+
     const count = await countProblemsForUpload(uploadId);
     await updateTestUploadStatus(uploadId, "extracted");
 

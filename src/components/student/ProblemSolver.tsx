@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormattedText } from "../shared/FormattedText";
+import { ProblemSourceImage } from "../shared/ProblemSourceImage";
 import { getChoiceEntries } from "../../lib/choices";
 import {
   getSessionProgress,
@@ -254,6 +255,14 @@ export function ProblemSolver({
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+        <ProblemSourceImage
+          problemId={currentProblem.problem.id}
+          sourceImageUrl={currentProblem.problem.sourceImageUrl}
+          viewerId={profile.id}
+          viewerRole="student"
+          alt="Problem source figure"
+          className="mb-5"
+        />
         <div className="break-words text-xl leading-8 font-semibold text-slate-950 sm:text-2xl">
           <FormattedText
             text={currentProblem.problem.questionText}

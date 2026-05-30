@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FormattedText } from "../shared/FormattedText";
+import { ProblemSourceImage } from "../shared/ProblemSourceImage";
 import { ROUTES } from "../../lib/constants";
 import {
   choicesArrayToRecord,
@@ -87,9 +88,13 @@ function DifficultyBadge({ difficulty }: { difficulty: "" | Difficulty }) {
 
 function ProblemPreview({
   draft,
+  problem,
+  viewerId,
   sourcePage,
 }: {
   draft: ProblemDraft;
+  problem: Problem;
+  viewerId: string;
   sourcePage: number | null;
 }) {
   const visibleChoices = draft.choices.filter(
@@ -122,6 +127,14 @@ function ProblemPreview({
           <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
             Question
           </p>
+          <ProblemSourceImage
+            problemId={problem.id}
+            sourceImageUrl={problem.sourceImageUrl}
+            viewerId={viewerId}
+            viewerRole="instructor"
+            alt="Problem source figure"
+            className="mt-3"
+          />
           <FormattedText
             text={draft.questionText}
             emptyText="Question text is empty."
@@ -202,9 +215,11 @@ function ProblemPreview({
 }
 
 function ProblemEditorCard({
+  profile,
   problem,
   onProblemUpdated,
 }: {
+  profile: AppUserProfile;
   problem: Problem;
   onProblemUpdated: (problem: Problem) => void;
 }) {
@@ -346,7 +361,12 @@ function ProblemEditorCard({
       </div>
 
       <div className="mt-6 grid gap-5">
-        <ProblemPreview draft={draft} sourcePage={problem.sourcePage} />
+        <ProblemPreview
+          draft={draft}
+          problem={problem}
+          viewerId={profile.id}
+          sourcePage={problem.sourcePage}
+        />
 
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -875,7 +895,8 @@ export function ProblemReviewPanel({
         <div className="grid gap-5">
           {problems.map((problem) => (
             <ProblemEditorCard
-              key={`${problem.id}-${problem.questionText}-${problem.correctAnswer ?? ""}-${JSON.stringify(problem.choices ?? {})}-${problem.aiSolution ?? ""}-${problem.difficulty ?? ""}-${problem.approved ? "approved" : "pending"}`}
+              key={`${problem.id}-${problem.questionText}-${problem.sourceImageUrl ?? ""}-${problem.correctAnswer ?? ""}-${JSON.stringify(problem.choices ?? {})}-${problem.aiSolution ?? ""}-${problem.difficulty ?? ""}-${problem.approved ? "approved" : "pending"}`}
+              profile={profile}
               problem={problem}
               onProblemUpdated={handleProblemUpdated}
             />

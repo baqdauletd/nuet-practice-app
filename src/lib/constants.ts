@@ -17,3 +17,11 @@ export function getStudentSessionProblemRoute(sessionId: string, index: number) 
 export function getStudentSessionResultsRoute(sessionId: string) {
   return `${ROUTES.student}/session/${sessionId}/results`;
 }
+
+export function getProblemSourceImageRoute(
+  problemId: string,
+  viewerId: string,
+  viewerRole: "instructor" | "student",
+) {
+  return `/api/problems/${problemId}/source-image?viewerId=${encodeURIComponent(viewerId)}&viewerRole=${encodeURIComponent(viewerRole)}`;
+}

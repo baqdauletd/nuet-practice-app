@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { FormattedText } from "../shared/FormattedText";
+import { ProblemSourceImage } from "../shared/ProblemSourceImage";
 import { getChoiceEntries } from "../../lib/choices";
 import { formatAiText } from "../../lib/formatting";
 import {
@@ -98,8 +99,10 @@ function FeedbackSection({
 
 function GradingCard({
   item,
+  profile,
 }: {
   item: SessionProblemWithProblem;
+  profile: AppUserProfile;
 }) {
   const feedback = item.submission?.aiFeedback as GradingFeedback | null;
   const usedFallbackFeedback =
@@ -112,6 +115,14 @@ function GradingCard({
           <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
             Problem {item.orderIndex + 1}
           </p>
+          <ProblemSourceImage
+            problemId={item.problem.id}
+            sourceImageUrl={item.problem.sourceImageUrl}
+            viewerId={profile.id}
+            viewerRole="student"
+            alt="Problem source figure"
+            className="mt-3"
+          />
           <div className="mt-2">
             <FormattedText
               text={item.problem.questionText}
@@ -461,7 +472,7 @@ export function ResultsPanel({
 
       <div className="grid gap-5">
         {problems.map((item) => (
-          <GradingCard key={item.id} item={item} />
+          <GradingCard key={item.id} item={item} profile={profile} />
         ))}
       </div>
 

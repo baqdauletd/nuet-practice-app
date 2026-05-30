@@ -28,6 +28,7 @@ export type Problem = {
   uploadId: string | null;
   subject: string;
   questionText: string;
+  sourceImageUrl: string | null;
   choices: ChoiceMap | null;
   correctAnswer: string | null;
   aiSolution: string | null;
@@ -42,6 +43,7 @@ export type ExtractedProblem = {
   choices: ChoiceMap | null;
   correct_answer: string | null;
   solution: string | null;
+  needs_visual_reference: boolean | null;
   difficulty: Difficulty | null;
   source_page: number | null;
 };
