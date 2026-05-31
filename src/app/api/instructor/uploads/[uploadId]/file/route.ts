@@ -71,7 +71,7 @@ export async function GET(
       headers: {
         "Content-Type": mimeType,
         "Content-Disposition": `inline; filename="${filename}"`,
-        "Cache-Control": "private, max-age=60",
+        "Cache-Control": "private, no-store, max-age=0",
       },
     });
   } catch (error) {

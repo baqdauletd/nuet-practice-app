@@ -705,8 +705,16 @@ export function ProblemReviewPanel({
   const totalCount = problems.length;
   const pendingCount = totalCount - approvedCount;
 
-  function getUploadFileRoute(targetUploadId: string) {
-    return `/api/instructor/uploads/${targetUploadId}/file?instructorId=${encodeURIComponent(profile.id)}`;
+  function getUploadFileRoute(targetUploadId: string, version?: string | null) {
+    const query = new URLSearchParams({
+      instructorId: profile.id,
+    });
+
+    if (version) {
+      query.set("v", version);
+    }
+
+    return `/api/instructor/uploads/${targetUploadId}/file?${query.toString()}`;
   }
 
   function handleProblemUpdated(updatedProblem: Problem) {
@@ -793,7 +801,10 @@ export function ProblemReviewPanel({
             </Link>
             <div className="mt-4 flex flex-wrap gap-3">
               <a
-                href={getUploadFileRoute(upload.id)}
+                href={getUploadFileRoute(
+                  upload.id,
+                  `${upload.originalFilename}:${upload.createdAt ?? ""}`,
+                )}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
