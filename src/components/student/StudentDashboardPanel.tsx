@@ -186,7 +186,7 @@ export function StudentDashboardPanel({
             {isStarting ? "Starting..." : "Start today’s practice"}
           </button>
           <p className="text-sm text-slate-500">
-            Existing daily sessions are reused instead of creating duplicates.
+            You can start more than one practice session on the same day.
           </p>
         </div>
 
@@ -199,7 +199,7 @@ export function StudentDashboardPanel({
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
         <h2 className="text-2xl font-semibold text-slate-950">
-          Today&apos;s session
+          Latest session today
         </h2>
 
         {isLoading ? (

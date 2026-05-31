@@ -190,13 +190,15 @@ export async function getTodaySession(studentId: string) {
     .select("id, student_id, session_date, problem_count, completed, created_at")
     .eq("student_id", studentId)
     .eq("session_date", today)
-    .maybeSingle<DailySessionRow>();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data ? toDailySession(data) : null;
+  const row = (data ?? [])[0] as DailySessionRow | undefined;
+  return row ? toDailySession(row) : null;
 }
 
 export async function getSessionById(sessionId: string) {
@@ -450,23 +452,6 @@ export async function getSessionProgress(
 }
 
 export async function createDailySession(studentId: string, problemCount: number) {
-  const existingSession = await getTodaySession(studentId);
-
-  if (existingSession) {
-    const progress = await getSessionProgress(existingSession.id, studentId);
-    const targetIndex = progress.firstIncompleteIndex ?? 1;
-
-    return {
-      session: existingSession,
-      problemCount: progress.totalProblems,
-      firstProblemPath: getStudentSessionProblemRoute(
-        existingSession.id,
-        targetIndex,
-      ),
-      created: false,
-    };
-  }
-
   const insforge = getInsforgeServerClient();
   const today = getTodayDateString();
   const { data: approvedProblemRows, error: approvedProblemsError } =

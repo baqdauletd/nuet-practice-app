@@ -36,8 +36,7 @@ create table if not exists daily_sessions (
   session_date date not null default current_date,
   problem_count int not null,
   completed boolean not null default false,
-  created_at timestamptz default now(),
-  unique(student_id, session_date)
+  created_at timestamptz default now()
 );
 
 create table if not exists daily_session_problems (
