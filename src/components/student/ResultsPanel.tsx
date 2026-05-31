@@ -198,12 +198,16 @@ function GradingCard({
         <div className="mt-5">
           <FeedbackSection title="Your Uploaded Photo">
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <Image
-                src={getStudentSubmissionPhotoRoute(item.id, profile.id)}
-                alt="Uploaded notebook solution"
-                width={1200}
-                height={1600}
-                unoptimized
+                <Image
+                  src={getStudentSubmissionPhotoRoute(
+                    item.id,
+                    profile.id,
+                    item.submission?.submittedAt,
+                  )}
+                  alt="Uploaded notebook solution"
+                  width={1200}
+                  height={1600}
+                  unoptimized
                 className="h-auto w-full object-contain"
               />
             </div>

@@ -34,6 +34,15 @@ export function getProblemSourceImageRoute(
 export function getStudentSubmissionPhotoRoute(
   sessionProblemId: string,
   studentId: string,
+  version?: string | null,
 ) {
-  return `/api/student/session-problems/${sessionProblemId}/photo?studentId=${encodeURIComponent(studentId)}`;
+  const query = new URLSearchParams({
+    studentId,
+  });
+
+  if (version) {
+    query.set("v", version);
+  }
+
+  return `/api/student/session-problems/${sessionProblemId}/photo?${query.toString()}`;
 }

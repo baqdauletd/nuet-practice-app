@@ -77,7 +77,7 @@ export async function GET(
     return new Response(photo.bytes, {
       headers: {
         "Content-Type": photo.mimeType,
-        "Cache-Control": "private, max-age=300",
+        "Cache-Control": "private, no-store, max-age=0",
       },
     });
   } catch (error) {

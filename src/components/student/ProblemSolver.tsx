@@ -327,9 +327,16 @@ export function ProblemSolver({
               <p className="text-sm font-medium text-slate-700">
                 Existing uploaded photo
               </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Choose another file above and save again to replace it.
+              </p>
               <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 <Image
-                  src={getStudentSubmissionPhotoRoute(currentProblem.id, profile.id)}
+                  src={getStudentSubmissionPhotoRoute(
+                    currentProblem.id,
+                    profile.id,
+                    currentProblem.submission.submittedAt,
+                  )}
                   alt="Uploaded notebook solution"
                   width={1200}
                   height={1600}
