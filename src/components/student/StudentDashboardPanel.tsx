@@ -8,7 +8,10 @@ import {
   getTodaySession,
   createDailySession,
 } from "../../lib/student-sessions/client";
-import { getStudentSessionResultsRoute } from "../../lib/constants";
+import {
+  getStudentSessionResultsRoute,
+  getStudentSessionsRoute,
+} from "../../lib/constants";
 import type { AppUserProfile, SessionProgress } from "../../lib/types";
 
 function formatToday() {
@@ -135,6 +138,15 @@ export function StudentDashboardPanel({
           Student Practice
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-700">{formatToday()}</p>
+        <div className="mt-5">
+          <button
+            type="button"
+            onClick={() => router.push(getStudentSessionsRoute())}
+            className="min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+          >
+            View all sessions
+          </button>
+        </div>
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">

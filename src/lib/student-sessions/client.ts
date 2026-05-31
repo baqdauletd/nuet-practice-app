@@ -9,6 +9,7 @@ import type {
   Problem,
   SessionProblemWithProblem,
   SessionProgress,
+  StudentSessionSummary,
   Submission,
 } from "../types";
 
@@ -360,6 +361,110 @@ export async function getSessionProgress(
     }),
     firstIncompleteIndex: firstIncomplete ? firstIncomplete.orderIndex + 1 : null,
   };
+}
+
+export async function listStudentSessionSummaries(
+  studentId: string,
+): Promise<StudentSessionSummary[]> {
+  const insforge = getInsforgeClient();
+  const { data: sessionData, error: sessionError } = await insforge.database
+    .from("daily_sessions")
+    .select("id, student_id, session_date, problem_count, completed, created_at")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  if (sessionError) {
+    throw new Error(sessionError.message);
+  }
+
+  const sessions = (sessionData ?? []).map((row) =>
+    toDailySession(row as DailySessionRow),
+  );
+
+  if (sessions.length === 0) {
+    return [];
+  }
+
+  const sessionIds = sessions.map((session) => session.id);
+  const { data: sessionProblemData, error: sessionProblemError } = await insforge.database
+    .from("daily_session_problems")
+    .select("id, session_id, problem_id, order_index")
+    .in("session_id", sessionIds)
+    .order("order_index", { ascending: true });
+
+  if (sessionProblemError) {
+    throw new Error(sessionProblemError.message);
+  }
+
+  const sessionProblems = (sessionProblemData ?? []).map((row) =>
+    toDailySessionProblem(row as DailySessionProblemRow),
+  );
+  const sessionProblemsBySessionId = new Map<string, DailySessionProblem[]>();
+
+  for (const sessionProblem of sessionProblems) {
+    if (!sessionProblem.sessionId) {
+      continue;
+    }
+
+    const currentProblems =
+      sessionProblemsBySessionId.get(sessionProblem.sessionId) ?? [];
+    currentProblems.push(sessionProblem);
+    sessionProblemsBySessionId.set(sessionProblem.sessionId, currentProblems);
+  }
+
+  const sessionProblemIds = sessionProblems.map((sessionProblem) => sessionProblem.id);
+  let submissionsBySessionProblemId = new Map<string, Submission>();
+
+  if (sessionProblemIds.length > 0) {
+    const { data: submissionData, error: submissionError } = await insforge.database
+      .from("submissions")
+      .select(
+        "id, session_problem_id, student_id, selected_answer, solution_photo_url, ai_feedback, is_correct, submitted_at",
+      )
+      .eq("student_id", studentId)
+      .in("session_problem_id", sessionProblemIds);
+
+    if (submissionError) {
+      throw new Error(submissionError.message);
+    }
+
+    submissionsBySessionProblemId = new Map(
+      (submissionData ?? [])
+        .map((row) => toSubmission(row as SubmissionRow))
+        .filter(
+          (
+            submission,
+          ): submission is Submission & { sessionProblemId: string } =>
+            typeof submission.sessionProblemId === "string",
+        )
+        .map((submission) => [submission.sessionProblemId, submission] as const),
+    );
+  }
+
+  return sessions.map((session) => {
+    const problems = sessionProblemsBySessionId.get(session.id) ?? [];
+    const submittedCount = problems.filter((problem) =>
+      submissionsBySessionProblemId.has(problem.id),
+    ).length;
+    const totalProblems = problems.length;
+    const firstIncomplete = problems.find(
+      (problem) => !submissionsBySessionProblemId.has(problem.id),
+    );
+    const allSubmitted = totalProblems > 0 && submittedCount >= totalProblems;
+
+    return {
+      session,
+      totalProblems,
+      submittedCount,
+      allSubmitted,
+      status: getSessionStatus({
+        session,
+        allSubmitted,
+        submittedCount,
+      }),
+      firstIncompleteIndex: firstIncomplete ? firstIncomplete.orderIndex + 1 : null,
+    } satisfies StudentSessionSummary;
+  });
 }
 
 export async function getSessionProblemByIndex(

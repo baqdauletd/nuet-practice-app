@@ -127,3 +127,12 @@ export type SessionProgress = {
   status: StudentSessionStatus;
   firstIncompleteIndex: number | null;
 };
+
+export type StudentSessionSummary = {
+  session: DailySession;
+  totalProblems: number;
+  submittedCount: number;
+  allSubmitted: boolean;
+  status: StudentSessionStatus;
+  firstIncompleteIndex: number | null;
+};

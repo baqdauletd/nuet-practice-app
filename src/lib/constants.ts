@@ -8,6 +8,7 @@ export const ROUTES = {
   login: "/login",
   instructor: "/instructor",
   student: "/student",
+  studentSessions: "/student/sessions",
 } as const;
 
 export function getStudentSessionProblemRoute(sessionId: string, index: number) {
@@ -16,6 +17,10 @@ export function getStudentSessionProblemRoute(sessionId: string, index: number) 
 
 export function getStudentSessionResultsRoute(sessionId: string) {
   return `${ROUTES.student}/session/${sessionId}/results`;
+}
+
+export function getStudentSessionsRoute() {
+  return ROUTES.studentSessions;
 }
 
 export function getProblemSourceImageRoute(

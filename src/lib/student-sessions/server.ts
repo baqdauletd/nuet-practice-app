@@ -57,8 +57,20 @@ type SubmissionRow = {
   submitted_at: string | null;
 };
 
-type ApprovedProblemIdRow = {
+type ApprovedProblemRow = {
   id: string;
+  created_at: string | null;
+};
+
+type StudentSessionHistoryRow = {
+  id: string;
+  created_at: string | null;
+};
+
+type StudentSessionProblemHistoryRow = {
+  id: string;
+  session_id: string | null;
+  problem_id: string | null;
 };
 
 function getTodayDateString() {
@@ -100,15 +112,20 @@ function inferSolutionPhotoMimeType(storageKey: string, blobType: string) {
   return blobType || "application/octet-stream";
 }
 
-function shuffleArray<T>(items: T[]) {
-  const copy = [...items];
-
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+function compareNullableStrings(left: string | null, right: string | null) {
+  if (left === right) {
+    return 0;
   }
 
-  return copy;
+  if (left === null) {
+    return -1;
+  }
+
+  if (right === null) {
+    return 1;
+  }
+
+  return left.localeCompare(right);
 }
 
 function toDailySession(row: DailySessionRow): DailySession {
@@ -457,7 +474,7 @@ export async function createDailySession(studentId: string, problemCount: number
   const { data: approvedProblemRows, error: approvedProblemsError } =
     await insforge.database
       .from("problems")
-      .select("id")
+      .select("id, created_at")
       .eq("approved", true)
       .eq("subject", "math");
 
@@ -465,15 +482,125 @@ export async function createDailySession(studentId: string, problemCount: number
     throw new Error(approvedProblemsError.message);
   }
 
-  const approvedProblemIds = (approvedProblemRows ?? []).map(
-    (row) => (row as ApprovedProblemIdRow).id,
+  const approvedProblems = (approvedProblemRows ?? []).map(
+    (row) => row as ApprovedProblemRow,
   );
 
-  if (approvedProblemIds.length < problemCount) {
+  if (approvedProblems.length < problemCount) {
     throw new Error("Not enough approved problems available.");
   }
 
-  const selectedProblemIds = shuffleArray(approvedProblemIds).slice(0, problemCount);
+  const { data: studentSessionRows, error: studentSessionsError } = await insforge.database
+    .from("daily_sessions")
+    .select("id, created_at")
+    .eq("student_id", studentId);
+
+  if (studentSessionsError) {
+    throw new Error(studentSessionsError.message);
+  }
+
+  const studentSessions = (studentSessionRows ?? []).map(
+    (row) => row as StudentSessionHistoryRow,
+  );
+  const studentSessionIds = studentSessions.map((row) => row.id);
+  const sessionCreatedAtById = new Map(
+    studentSessions.map((row) => [row.id, row.created_at]),
+  );
+
+  let studentSessionProblems: StudentSessionProblemHistoryRow[] = [];
+
+  if (studentSessionIds.length > 0) {
+    const { data: studentSessionProblemRows, error: studentSessionProblemsError } =
+      await insforge.database
+        .from("daily_session_problems")
+        .select("id, session_id, problem_id")
+        .in("session_id", studentSessionIds);
+
+    if (studentSessionProblemsError) {
+      throw new Error(studentSessionProblemsError.message);
+    }
+
+    studentSessionProblems = (studentSessionProblemRows ?? []).map(
+      (row) => row as StudentSessionProblemHistoryRow,
+    );
+  }
+
+  const sessionProblemById = new Map(
+    studentSessionProblems.map((row) => [row.id, row]),
+  );
+  const studentSessionProblemIds = studentSessionProblems.map((row) => row.id);
+  const lastSubmittedAtByProblemId = new Map<string, string>();
+
+  if (studentSessionProblemIds.length > 0) {
+    const { data: submissionRows, error: submissionsError } = await insforge.database
+      .from("submissions")
+      .select("session_problem_id, submitted_at")
+      .eq("student_id", studentId)
+      .in("session_problem_id", studentSessionProblemIds);
+
+    if (submissionsError) {
+      throw new Error(submissionsError.message);
+    }
+
+    for (const submissionRow of submissionRows ?? []) {
+      const sessionProblemId = submissionRow.session_problem_id as string | null;
+      const sessionProblem = sessionProblemId
+        ? sessionProblemById.get(sessionProblemId)
+        : null;
+      const problemId = sessionProblem?.problem_id;
+
+      if (!problemId) {
+        continue;
+      }
+
+      const fallbackTimestamp = sessionProblem.session_id
+        ? sessionCreatedAtById.get(sessionProblem.session_id) ?? null
+        : null;
+      const usedAt = (submissionRow.submitted_at as string | null) ?? fallbackTimestamp;
+      const existingUsedAt = lastSubmittedAtByProblemId.get(problemId) ?? null;
+
+      if (!existingUsedAt || compareNullableStrings(existingUsedAt, usedAt) < 0) {
+        lastSubmittedAtByProblemId.set(problemId, usedAt ?? "");
+      }
+    }
+  }
+
+  const selectedProblemIds = approvedProblems
+    .slice()
+    .sort((left, right) => {
+      const leftLastSubmittedAt = lastSubmittedAtByProblemId.get(left.id) ?? null;
+      const rightLastSubmittedAt = lastSubmittedAtByProblemId.get(right.id) ?? null;
+
+      if (leftLastSubmittedAt === null && rightLastSubmittedAt !== null) {
+        return -1;
+      }
+
+      if (leftLastSubmittedAt !== null && rightLastSubmittedAt === null) {
+        return 1;
+      }
+
+      const usageComparison = compareNullableStrings(
+        leftLastSubmittedAt,
+        rightLastSubmittedAt,
+      );
+
+      if (usageComparison !== 0) {
+        return usageComparison;
+      }
+
+      const createdAtComparison = compareNullableStrings(
+        left.created_at,
+        right.created_at,
+      );
+
+      if (createdAtComparison !== 0) {
+        return createdAtComparison;
+      }
+
+      return left.id.localeCompare(right.id);
+    })
+    .slice(0, problemCount)
+    .map((problem) => problem.id);
 
   const { data: createdSessionRows, error: createSessionError } = await insforge.database
     .from("daily_sessions")
