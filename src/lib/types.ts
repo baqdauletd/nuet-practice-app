@@ -10,6 +10,7 @@ export type AppUserProfile = {
   email: string;
   role: UserRole;
   name: string | null;
+  nickname: string | null;
   createdAt: string | null;
 };
 
@@ -135,4 +136,38 @@ export type StudentSessionSummary = {
   allSubmitted: boolean;
   status: StudentSessionStatus;
   firstIncompleteIndex: number | null;
+};
+
+export type ConnectionStatus = "pending" | "accepted" | "rejected";
+
+export type InstructorStudentConnection = {
+  id: string;
+  instructorId: string;
+  studentId: string;
+  status: ConnectionStatus;
+  createdAt: string | null;
+  respondedAt: string | null;
+};
+
+export type ConnectionRequestSummary = {
+  connection: InstructorStudentConnection;
+  instructor: AppUserProfile;
+  student: AppUserProfile;
+};
+
+export type AssignedProblem = {
+  id: string;
+  instructor: AppUserProfile;
+  student: AppUserProfile;
+  problem: Problem;
+  upload: TestUpload | null;
+  createdAt: string | null;
+};
+
+export type InstructorProblemLibraryItem = {
+  problem: Problem;
+  instructor: AppUserProfile;
+  upload: TestUpload | null;
+  assignedAt: string | null;
+  assignmentId: string | null;
 };

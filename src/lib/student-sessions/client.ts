@@ -234,6 +234,16 @@ export async function getSessionProblemsForResults(
   });
 }
 
+export async function getSessionProblemsForReview(
+  sessionId: string,
+  studentId: string,
+) {
+  return getSessionProblemsInternal(sessionId, {
+    studentId,
+    includeResultsFields: true,
+  });
+}
+
 async function getSessionProblemsInternal(
   sessionId: string,
   options: {

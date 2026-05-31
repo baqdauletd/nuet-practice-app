@@ -8,6 +8,7 @@ type ProfileRow = {
   email: string;
   role: UserRole;
   name: string | null;
+  nickname: string | null;
   created_at: string | null;
 };
 
@@ -17,6 +18,7 @@ function toAppUserProfile(row: ProfileRow): AppUserProfile {
     email: row.email,
     role: row.role,
     name: row.name,
+    nickname: row.nickname,
     createdAt: row.created_at,
   };
 }
@@ -35,7 +37,7 @@ export async function getServerProfileById(userId: string) {
   const insforge = getInsforgeServerClient();
   const { data, error } = await insforge.database
     .from("profiles")
-    .select("id, email, role, name, created_at")
+    .select("id, email, role, name, nickname, created_at")
     .eq("id", userId)
     .maybeSingle<ProfileRow>();
 

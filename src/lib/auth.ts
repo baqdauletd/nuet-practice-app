@@ -9,6 +9,7 @@ type ProfileRow = {
   email: string;
   role: UserRole;
   name: string | null;
+  nickname: string | null;
   created_at: string | null;
 };
 
@@ -40,6 +41,7 @@ function toAppUserProfile(row: ProfileRow): AppUserProfile {
     email: row.email,
     role: row.role,
     name: row.name,
+    nickname: row.nickname,
     createdAt: row.created_at,
   };
 }
@@ -85,6 +87,97 @@ function throwIfError(error: { message: string } | null) {
 
     throw detailedError;
   }
+}
+
+const NICKNAME_FIRST_WORDS = [
+  "pineapple",
+  "cracked",
+  "noodle",
+  "cosmic",
+  "spicy",
+  "wobble",
+  "dusty",
+  "bouncy",
+  "toasted",
+  "marshmallow",
+  "sneaky",
+  "zippy",
+];
+
+const NICKNAME_SECOND_WORDS = [
+  "juice",
+  "muffin",
+  "teapot",
+  "pickle",
+  "waffle",
+  "meteor",
+  "taco",
+  "pudding",
+  "otter",
+  "banjo",
+  "bubble",
+  "carrot",
+];
+
+function createNicknameCandidate() {
+  const first =
+    NICKNAME_FIRST_WORDS[Math.floor(Math.random() * NICKNAME_FIRST_WORDS.length)];
+  const second =
+    NICKNAME_SECOND_WORDS[Math.floor(Math.random() * NICKNAME_SECOND_WORDS.length)];
+
+  return `${first} ${second}`;
+}
+
+async function ensureProfileNickname(profile: ProfileRow) {
+  if (profile.nickname) {
+    return profile;
+  }
+
+  const insforge = getInsforgeClient();
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const baseNickname = createNicknameCandidate();
+    const nickname =
+      attempt < 4
+        ? baseNickname
+        : `${baseNickname} ${Math.floor(10 + Math.random() * 90)}`;
+
+    const { data, error } = await insforge.database
+      .from("profiles")
+      .update({
+        nickname,
+      })
+      .eq("id", profile.id)
+      .is("nickname", null)
+      .select("id, email, role, name, nickname, created_at")
+      .maybeSingle<ProfileRow>();
+
+    if (error) {
+      if (error.message.toLowerCase().includes("duplicate")) {
+        continue;
+      }
+
+      throwIfError(error);
+    }
+
+    if (data?.nickname) {
+      return data;
+    }
+
+    const { data: existing, error: existingError } = await insforge.database
+      .from("profiles")
+      .select("id, email, role, name, nickname, created_at")
+      .eq("id", profile.id)
+      .maybeSingle<ProfileRow>();
+
+    throwIfError(existingError);
+
+    if (existing?.nickname) {
+      return existing;
+    }
+  }
+
+  throw new Error("Unable to assign a nickname to this profile.");
 }
 
 export async function signInWithEmailPassword(
@@ -211,7 +304,7 @@ export async function getCurrentUserProfile() {
 
   const { data, error } = await insforge.database
     .from("profiles")
-    .select("id, email, role, name, created_at")
+    .select("id, email, role, name, nickname, created_at")
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 
@@ -225,10 +318,12 @@ export async function getCurrentUserProfile() {
     } satisfies CurrentUserProfileResult;
   }
 
+  const profile = await ensureProfileNickname(data);
+
   return {
     status: "signed_in",
     user,
-    profile: toAppUserProfile(data),
+    profile: toAppUserProfile(profile),
   } satisfies CurrentUserProfileResult;
 }
 
@@ -247,7 +342,7 @@ export async function createAppUserProfile({
 
   const existingProfile = await insforge.database
     .from("profiles")
-    .select("id, email, role, name, created_at")
+    .select("id, email, role, name, nickname, created_at")
     .eq("id", id)
     .maybeSingle<ProfileRow>();
 
@@ -268,7 +363,7 @@ export async function createAppUserProfile({
       role,
       name,
     })
-    .select("id, email, role, name, created_at")
+    .select("id, email, role, name, nickname, created_at")
     .single<ProfileRow>();
 
   throwIfError(error);
@@ -279,6 +374,6 @@ export async function createAppUserProfile({
 
   return {
     status: "created" as const,
-    profile: toAppUserProfile(data),
+    profile: toAppUserProfile(await ensureProfileNickname(data)),
   };
 }

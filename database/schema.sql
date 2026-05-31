@@ -3,6 +3,7 @@ create table if not exists profiles (
   email text unique not null,
   role text not null check (role in ('instructor', 'student')),
   name text,
+  nickname text unique,
   created_at timestamptz default now()
 );
 
@@ -58,4 +59,23 @@ create table if not exists submissions (
   is_correct boolean,
   submitted_at timestamptz default now(),
   unique(session_problem_id, student_id)
+);
+
+create table if not exists instructor_student_connections (
+  id uuid primary key default gen_random_uuid(),
+  instructor_id uuid references profiles(id) on delete cascade,
+  student_id uuid references profiles(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected')),
+  created_at timestamptz default now(),
+  responded_at timestamptz,
+  unique(instructor_id, student_id)
+);
+
+create table if not exists assigned_problems (
+  id uuid primary key default gen_random_uuid(),
+  instructor_id uuid references profiles(id) on delete cascade,
+  student_id uuid references profiles(id) on delete cascade,
+  problem_id uuid references problems(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(instructor_id, student_id, problem_id)
 );
