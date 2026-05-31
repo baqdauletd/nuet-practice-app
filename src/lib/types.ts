@@ -106,6 +106,7 @@ export type StudentSessionStatus =
 
 export type GradingFeedback = {
   is_correct: boolean;
+  photo_solution_correct?: boolean | null;
   feedback: string;
   mistakes: string[];
   guided_solution: string;

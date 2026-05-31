@@ -21,6 +21,7 @@ export const extractionResponseSchema = z.object({
 
 export const gradingFeedbackSchema = z.object({
   is_correct: z.boolean(),
+  photo_solution_correct: z.boolean().nullable().optional().default(null),
   feedback: z.string().min(1, "feedback is required"),
   mistakes: z.array(z.string()).default([]),
   guided_solution: z.string().min(1, "guided_solution is required"),
@@ -68,7 +69,15 @@ export function parseExtractionResponse(input: string) {
 }
 
 export function parseGradingFeedback(input: string) {
-  const jsonString = extractJsonString(input);
+  let jsonString: string;
+  try {
+    jsonString = extractJsonString(input);
+  } catch (error) {
+    console.error("Gemini grading response did not contain a JSON object.", {
+      preview: getPreview(input),
+    });
+    throw error;
+  }
 
   let parsed: unknown;
   try {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +19,10 @@ import type {
   SessionProblemWithProblem,
   SessionProgress,
 } from "../../lib/types";
-import { getStudentSessionResultsRoute } from "../../lib/constants";
+import {
+  getStudentSessionResultsRoute,
+  getStudentSubmissionPhotoRoute,
+} from "../../lib/constants";
 
 function DashboardButton({
   className = "",
@@ -47,7 +51,11 @@ function StructuredText({
   const formatted = formatAiText(text);
 
   if (!formatted) {
-    return <p className="break-words text-sm leading-7 text-slate-600">{emptyText}</p>;
+    return (
+      <p className="break-words text-sm leading-7 text-slate-600">
+        {emptyText}
+      </p>
+    );
   }
 
   if (ordered && formatted.kind === "steps") {
@@ -55,7 +63,7 @@ function StructuredText({
       <ol className="grid gap-3 pl-5 text-sm leading-7 text-slate-700 marker:font-semibold marker:text-slate-500">
         {formatted.items.map((item, index) => (
           <li key={`${index}-${item}`} className="break-words">
-            {item}
+            <FormattedText text={item} emptyText="" />
           </li>
         ))}
       </ol>
@@ -65,9 +73,7 @@ function StructuredText({
   return (
     <div className="grid gap-3 text-sm leading-7 text-slate-700">
       {formatted.items.map((item, index) => (
-        <p key={`${index}-${item}`} className="break-words whitespace-pre-wrap">
-          {item}
-        </p>
+        <FormattedText key={`${index}-${item}`} text={item} emptyText="" />
       ))}
     </div>
   );
@@ -76,19 +82,12 @@ function StructuredText({
 function FeedbackSection({
   title,
   children,
-  tone = "default",
 }: {
   title: string;
   children: ReactNode;
-  tone?: "default" | "accent";
 }) {
-  const toneClasses =
-    tone === "accent"
-      ? "border-sky-200 bg-sky-50/80"
-      : "border-slate-200 bg-white/80";
-
   return (
-    <section className={`rounded-2xl border p-4 sm:p-5 ${toneClasses}`}>
+    <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-5">
       <h4 className="text-sm font-semibold tracking-[0.14em] text-slate-500 uppercase">
         {title}
       </h4>
@@ -162,10 +161,6 @@ function GradingCard({
           <span className="font-semibold text-slate-900">Your answer:</span>{" "}
           {item.submission?.selectedAnswer ?? "No answer"}
         </p>
-        <p>
-          <span className="font-semibold text-slate-900">Correct answer:</span>{" "}
-          {item.problem.correctAnswer ?? "Unknown"}
-        </p>
         {usedFallbackFeedback ? (
           <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             AI tutoring feedback could not be generated for this problem, but your MCQ correctness was still recorded.
@@ -174,13 +169,6 @@ function GradingCard({
       </div>
 
       <div className="mt-5 grid gap-4">
-        <FeedbackSection title="Feedback">
-          <StructuredText
-            text={feedback?.feedback}
-            emptyText="No feedback available."
-          />
-        </FeedbackSection>
-
         <FeedbackSection title="Mistakes">
           {feedback?.mistakes?.length ? (
             <ul className="grid gap-2 pl-5 text-sm leading-7 text-slate-700">
@@ -197,21 +185,31 @@ function GradingCard({
           )}
         </FeedbackSection>
 
-        <FeedbackSection title="Guided Solution">
+        <FeedbackSection title="Solution">
           <StructuredText
-            text={feedback?.guided_solution}
-            emptyText="No guided solution available."
+            text={item.problem.aiSolution ?? feedback?.guided_solution}
+            emptyText="No solution available."
             ordered
           />
         </FeedbackSection>
-
-        <FeedbackSection title="Optimal / Faster Method" tone="accent">
-          <StructuredText
-            text={feedback?.optimal_solution}
-            emptyText="No optimal solution available."
-          />
-        </FeedbackSection>
       </div>
+
+      {item.submission?.solutionPhotoUrl ? (
+        <div className="mt-5">
+          <FeedbackSection title="Your Uploaded Photo">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <Image
+                src={getStudentSubmissionPhotoRoute(item.id, profile.id)}
+                alt="Uploaded notebook solution"
+                width={1200}
+                height={1600}
+                unoptimized
+                className="h-auto w-full object-contain"
+              />
+            </div>
+          </FeedbackSection>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -428,8 +426,7 @@ export function ResultsPanel({
               Session results
             </h2>
             <p className="mt-2 text-sm leading-7 text-slate-700">
-              Review correctness, AI tutoring feedback, and more efficient ways
-              to solve each problem.
+              Review correctness, mistakes, your submitted work, and the saved instructor solution for each problem.
             </p>
           </div>
           <Link

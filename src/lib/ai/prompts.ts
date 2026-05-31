@@ -62,6 +62,10 @@ Tasks:
 Important grading rule:
 - MCQ correctness is determined primarily by comparing selected_answer with correct_answer.
 - Your notebook-photo analysis is tutoring feedback, not the final source of correctness.
+- If the stored correct_answer conflicts with the instructor-approved solution or the problem itself, prefer the instructor-approved solution and mark is_correct accordingly.
+- If a notebook photo is included, also decide whether the uploaded work supports the selected answer.
+- If the selected answer is correct but the uploaded work is unrelated, clearly wrong, or contradicts the final answer, set "photo_solution_correct" to false.
+- If no photo is included, set "photo_solution_correct" to null.
 - Keep each field concise and easy for a student to read on a phone screen.
 - Write "feedback" as a short paragraph.
 - Return "mistakes" as an array of short bullet-style strings.
@@ -71,8 +75,12 @@ Important grading rule:
 Return only valid JSON in this shape:
 {
   "is_correct": true,
+  "photo_solution_correct": true,
   "feedback": "...",
   "mistakes": ["..."],
   "guided_solution": "...",
   "optimal_solution": "..."
-}`;
+}
+
+Do not wrap the JSON in markdown.
+Do not add any explanation before or after the JSON.`;

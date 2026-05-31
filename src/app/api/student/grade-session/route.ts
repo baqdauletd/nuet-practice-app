@@ -35,6 +35,7 @@ function normalizeAnswer(value: string | null) {
 function createFallbackFeedback(isCorrect: boolean): GradingFeedback {
   return {
     is_correct: isCorrect,
+    photo_solution_correct: null,
     feedback: "AI feedback failed, but MCQ correctness was recorded.",
     mistakes: isCorrect
       ? []
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
       const normalizedCorrectAnswer = normalizeAnswer(
         sessionProblem.problem.correctAnswer,
       );
-      const isCorrect =
+      const matchedStoredAnswer =
         normalizedSelectedAnswer !== "" &&
         normalizedCorrectAnswer !== "" &&
         normalizedSelectedAnswer === normalizedCorrectAnswer;
@@ -185,9 +186,13 @@ export async function POST(request: Request) {
           solutionPhotoMimeType,
         });
 
+        const photoContradictsAnswer =
+          Boolean(sessionProblem.submission.solutionPhotoUrl) &&
+          aiFeedback.photo_solution_correct === false;
+
         feedback = {
           ...aiFeedback,
-          is_correct: isCorrect,
+          is_correct: matchedStoredAnswer && !photoContradictsAnswer,
         };
 
         if (
@@ -210,14 +215,14 @@ export async function POST(request: Request) {
           correctAnswer: sessionProblem.problem.correctAnswer,
           hasSolutionPhoto: Boolean(sessionProblem.submission.solutionPhotoUrl),
         });
-        feedback = createDebugFallbackFeedback(isCorrect, {
+        feedback = createDebugFallbackFeedback(matchedStoredAnswer, {
           debugError: message,
           debugStep,
         });
       }
 
       await updateSubmissionGrading(sessionProblem.submission.id, {
-        isCorrect,
+        isCorrect: feedback.is_correct,
         aiFeedback: feedback,
       });
     }

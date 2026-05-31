@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,7 @@ import {
 import {
   getStudentSessionProblemRoute,
   getStudentSessionResultsRoute,
+  getStudentSubmissionPhotoRoute,
 } from "../../lib/constants";
 import type {
   AppUserProfile,
@@ -321,9 +323,21 @@ export function ProblemSolver({
             Selected photo: {selectedPhoto?.name ?? "No new photo selected. On a phone, this opens your camera or gallery picker."}
           </p>
           {currentProblem.submission?.solutionPhotoUrl ? (
-            <p className="mt-2 text-sm text-slate-500">
-              Existing uploaded photo: {currentProblem.submission.solutionPhotoUrl}
-            </p>
+            <div className="mt-4">
+              <p className="text-sm font-medium text-slate-700">
+                Existing uploaded photo
+              </p>
+              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <Image
+                  src={getStudentSubmissionPhotoRoute(currentProblem.id, profile.id)}
+                  alt="Uploaded notebook solution"
+                  width={1200}
+                  height={1600}
+                  unoptimized
+                  className="h-auto w-full object-contain"
+                />
+              </div>
+            </div>
           ) : null}
         </div>
 

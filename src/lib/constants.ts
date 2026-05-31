@@ -25,3 +25,10 @@ export function getProblemSourceImageRoute(
 ) {
   return `/api/problems/${problemId}/source-image?viewerId=${encodeURIComponent(viewerId)}&viewerRole=${encodeURIComponent(viewerRole)}`;
 }
+
+export function getStudentSubmissionPhotoRoute(
+  sessionProblemId: string,
+  studentId: string,
+) {
+  return `/api/student/session-problems/${sessionProblemId}/photo?studentId=${encodeURIComponent(studentId)}`;
+}

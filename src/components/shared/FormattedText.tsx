@@ -76,11 +76,7 @@ function InlineMath({
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function DisplayMath({
-  expression,
-}: {
-  expression: string;
-}) {
+function DisplayMath({ expression }: { expression: string }) {
   const html = renderKatex(expression, true);
 
   if (!html) {
@@ -88,6 +84,47 @@ function DisplayMath({
   }
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function renderBoldText(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/gu);
+
+  return parts.map((part, index) => {
+    const isBold = /^\*\*[^*]+\*\*$/u.test(part);
+
+    if (!isBold) {
+      return <span key={`${index}-${part}`}>{part}</span>;
+    }
+
+    return <strong key={`${index}-${part}`}>{part.slice(2, -2)}</strong>;
+  });
+}
+
+function renderInlineSegments(line: string) {
+  const parts = line.split(
+    /(\$\$[^$]+\$\$|\$[^$]+\$|\\\([^)]+\\\)|\\\[[\s\S]+?\\\])/gu,
+  );
+
+  return parts.map((part, index) => {
+    const isMathToken =
+      /^\$\$[^$]+\$\$$/u.test(part) ||
+      /^\$[^$]+\$$/u.test(part) ||
+      /^\\\([^)]+\\\)$/u.test(part) ||
+      /^\\\[[\s\S]+\\\]$/u.test(part);
+
+    if (!isMathToken) {
+      return <span key={`${index}-${part}`}>{renderBoldText(part)}</span>;
+    }
+
+    const expression = stripMathDelimiters(part);
+    const html = renderKatex(expression, false);
+
+    if (!html) {
+      return <span key={`${index}-${part}`}>{renderBoldText(part)}</span>;
+    }
+
+    return <InlineMath key={`${index}-${part}`} expression={expression} />;
+  });
 }
 
 function renderLine(line: string) {
@@ -107,33 +144,10 @@ function renderLine(line: string) {
     );
   }
 
-  const parts = line.split(
-    /(\$\$[^$]+\$\$|\$[^$]+\$|\\\([^)]+\\\)|\\\[[\s\S]+?\\\])/gu,
-  );
-
-  return parts.map((part, index) => {
-    const isMathToken =
-      /^\$\$[^$]+\$\$$/u.test(part) ||
-      /^\$[^$]+\$$/u.test(part) ||
-      /^\\\([^)]+\\\)$/u.test(part) ||
-      /^\\\[[\s\S]+\\\]$/u.test(part);
-
-    if (!isMathToken) {
-      return <span key={`${index}-${part}`}>{part}</span>;
-    }
-
-    const expression = stripMathDelimiters(part);
-    const html = renderKatex(expression, false);
-
-    if (!html) {
-      return <span key={`${index}-${part}`}>{part}</span>;
-    }
-
-    return <InlineMath key={`${index}-${part}`} expression={expression} />;
-  });
+  return renderInlineSegments(line);
 }
 
-function renderParagraph(paragraph: string) {
+function renderParagraphLines(paragraph: string) {
   const lines = paragraph.split("\n");
 
   return lines.map((line, index) => (
@@ -142,6 +156,29 @@ function renderParagraph(paragraph: string) {
       {index < lines.length - 1 ? <br /> : null}
     </span>
   ));
+}
+
+function renderParagraph(paragraph: string, index: number) {
+  const lines = paragraph.split("\n");
+  const listLines = lines.filter((line) => line.trim().startsWith("- "));
+
+  if (lines.length > 0 && listLines.length === lines.length) {
+    return (
+      <ul key={`${index}-${paragraph.slice(0, 32)}`} className="grid gap-2 pl-5">
+        {lines.map((line, lineIndex) => (
+          <li key={`${lineIndex}-${line}`} className="break-words list-disc">
+            {renderLine(line.trim().slice(2))}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <p key={`${index}-${paragraph.slice(0, 32)}`} className="break-words">
+      {renderParagraphLines(paragraph)}
+    </p>
+  );
 }
 
 export function FormattedText({
@@ -167,11 +204,7 @@ export function FormattedText({
 
   return (
     <div className={`grid gap-3 text-sm leading-7 text-slate-700 ${className}`.trim()}>
-      {paragraphs.map((paragraph, index) => (
-        <p key={`${index}-${paragraph.slice(0, 32)}`} className="break-words">
-          {renderParagraph(paragraph)}
-        </p>
-      ))}
+      {paragraphs.map((paragraph, index) => renderParagraph(paragraph, index))}
     </div>
   );
 }

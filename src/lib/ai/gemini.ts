@@ -90,6 +90,9 @@ const gradingResponseJsonSchema = {
   type: "object",
   properties: {
     is_correct: { type: "boolean" },
+    photo_solution_correct: {
+      anyOf: [{ type: "boolean" }, { type: "null" }],
+    },
     feedback: { type: "string" },
     mistakes: {
       type: "array",
@@ -100,6 +103,7 @@ const gradingResponseJsonSchema = {
   },
   required: [
     "is_correct",
+    "photo_solution_correct",
     "feedback",
     "mistakes",
     "guided_solution",
@@ -168,17 +172,7 @@ export async function gradeSubmissionWithGemini({
   solutionPhotoMimeType?: string | null;
 }) {
   const ai = getGeminiClient();
-  const parts: Array<
-    | { text: string }
-    | {
-        inlineData: {
-          mimeType: string;
-          data: string;
-        };
-      }
-  > = [
-    {
-      text: `${NUET_MATH_GRADING_PROMPT}
+  const promptText = `${NUET_MATH_GRADING_PROMPT}
 
 Problem text:
 ${problemText}
@@ -193,38 +187,77 @@ Instructor-approved solution:
 ${officialSolution ?? "No official solution available."}
 
 Student selected answer:
-${selectedAnswer ?? "No answer selected"}`,
-    },
-  ];
+${selectedAnswer ?? "No answer selected"}`;
 
-  if (solutionPhotoBytes && solutionPhotoMimeType) {
-    parts.push({
-      inlineData: {
-        mimeType: solutionPhotoMimeType,
-        data: toBase64(solutionPhotoBytes),
+  function buildParts(includePhoto: boolean): Array<
+    | { text: string }
+    | {
+        inlineData: {
+          mimeType: string;
+          data: string;
+        };
+      }
+  > {
+    const parts: Array<
+      | { text: string }
+      | {
+          inlineData: {
+            mimeType: string;
+            data: string;
+          };
+        }
+    > = [{ text: promptText }];
+
+    if (includePhoto && solutionPhotoBytes && solutionPhotoMimeType) {
+      parts.push({
+        inlineData: {
+          mimeType: solutionPhotoMimeType,
+          data: toBase64(solutionPhotoBytes),
+        },
+      });
+    }
+
+    return parts;
+  }
+
+  async function generate(includePhoto: boolean) {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: buildParts(includePhoto),
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: gradingResponseJsonSchema,
+        temperature: 0.1,
       },
     });
+
+    const responseText = response.text;
+    if (!responseText) {
+      throw new Error("Gemini returned an empty grading response.");
+    }
+
+    return parseGradingFeedback(responseText);
   }
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: [
-      {
-        role: "user",
-        parts,
-      },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: gradingResponseJsonSchema,
-      temperature: 0.1,
-    },
-  });
+  try {
+    return await generate(Boolean(solutionPhotoBytes && solutionPhotoMimeType));
+  } catch (error) {
+    const shouldRetryWithoutPhoto =
+      Boolean(solutionPhotoBytes && solutionPhotoMimeType) &&
+      error instanceof Error &&
+      (error.message.includes("did not contain a JSON object") ||
+        error.message.includes("invalid grading JSON") ||
+        error.message.includes("schema validation"));
 
-  const responseText = response.text;
-  if (!responseText) {
-    throw new Error("Gemini returned an empty grading response.");
+    if (!shouldRetryWithoutPhoto) {
+      throw error;
+    }
+
+    return generate(false);
   }
-
-  return parseGradingFeedback(responseText);
 }
