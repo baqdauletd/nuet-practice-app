@@ -171,3 +171,16 @@ export type InstructorProblemLibraryItem = {
   assignedAt: string | null;
   assignmentId: string | null;
 };
+
+export type AssignedProblemProgressItem = {
+  assignment: AssignedProblem;
+  solved: boolean;
+};
+
+export type InstructorAssignedProblemProgress = {
+  instructor: AppUserProfile;
+  items: AssignedProblemProgressItem[];
+  solvedCount: number;
+  totalCount: number;
+  unsolvedCount: number;
+};

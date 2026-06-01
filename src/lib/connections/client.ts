@@ -4,8 +4,10 @@ import { getInsforgeClient } from "../insforge/client";
 import type {
   AppUserProfile,
   AssignedProblem,
+  AssignedProblemProgressItem,
   ConnectionRequestSummary,
   ConnectionStatus,
+  InstructorAssignedProblemProgress,
   InstructorProblemLibraryItem,
   InstructorStudentConnection,
   Problem,
@@ -110,6 +112,10 @@ function toProblem(row: ProblemRow): Problem {
     approved: row.approved,
     createdAt: row.created_at,
   };
+}
+
+function getDisplayName(profile: AppUserProfile) {
+  return profile.name?.trim() || profile.nickname || profile.email;
 }
 
 function maybeHideProblemAnswers(problem: Problem, includeAnswers?: boolean) {
@@ -323,6 +329,87 @@ async function listProblemsByIds(
       toProblem(row as ProblemRow),
       options?.includeAnswers,
     ),
+  );
+}
+
+async function listSolvedAssignedProblemIdsForStudent(
+  studentId: string,
+  problemIds: string[],
+) {
+  if (problemIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const insforge = getInsforgeClient();
+  const { data: sessionRows, error: sessionError } = await insforge.database
+    .from("daily_sessions")
+    .select("id")
+    .eq("student_id", studentId);
+
+  if (sessionError) {
+    throw new Error(sessionError.message);
+  }
+
+  const sessionIds = (sessionRows ?? [])
+    .map((row) => row.id as string | null)
+    .filter((value): value is string => typeof value === "string");
+
+  if (sessionIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const { data: sessionProblemRows, error: sessionProblemError } = await insforge.database
+    .from("daily_session_problems")
+    .select("id, problem_id")
+    .in("session_id", sessionIds)
+    .in("problem_id", problemIds);
+
+  if (sessionProblemError) {
+    throw new Error(sessionProblemError.message);
+  }
+
+  const sessionProblems = (sessionProblemRows ?? []).map((row) => ({
+    id: row.id as string | null,
+    problemId: row.problem_id as string | null,
+  }));
+  const sessionProblemIds = sessionProblems
+    .map((row) => row.id)
+    .filter((value): value is string => typeof value === "string");
+
+  if (sessionProblemIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const { data: submissionRows, error: submissionError } = await insforge.database
+    .from("submissions")
+    .select("session_problem_id")
+    .eq("student_id", studentId)
+    .in("session_problem_id", sessionProblemIds);
+
+  if (submissionError) {
+    throw new Error(submissionError.message);
+  }
+
+  const sessionProblemsById = new Map(
+    sessionProblems
+      .filter(
+        (
+          row,
+        ): row is {
+          id: string;
+          problemId: string;
+        } => typeof row.id === "string" && typeof row.problemId === "string",
+      )
+      .map((row) => [row.id, row.problemId]),
+  );
+
+  return new Set(
+    (submissionRows ?? [])
+      .map((row) => row.session_problem_id as string | null)
+      .map((sessionProblemId) =>
+        sessionProblemId ? sessionProblemsById.get(sessionProblemId) ?? null : null,
+      )
+      .filter((value): value is string => typeof value === "string"),
   );
 }
 
@@ -657,4 +744,56 @@ export async function listConnectedInstructorProblemLibrary(studentId: string) {
       } satisfies InstructorProblemLibraryItem;
     })
     .filter((item): item is InstructorProblemLibraryItem => item !== null);
+}
+
+export async function listInstructorAssignedProblemProgress(studentId: string) {
+  const [instructors, assignedProblems] = await Promise.all([
+    listConnectedInstructors(studentId),
+    listAssignedProblemsForStudent(studentId),
+  ]);
+  const solvedProblemIds = await listSolvedAssignedProblemIdsForStudent(
+    studentId,
+    assignedProblems.map((item) => item.problem.id),
+  );
+  const itemsByInstructorId = new Map<string, AssignedProblemProgressItem[]>();
+
+  for (const assignment of assignedProblems) {
+    const items = itemsByInstructorId.get(assignment.instructor.id) ?? [];
+    items.push({
+      assignment,
+      solved: solvedProblemIds.has(assignment.problem.id),
+    });
+    itemsByInstructorId.set(assignment.instructor.id, items);
+  }
+
+  return instructors
+    .map((instructor) => {
+      const items = itemsByInstructorId.get(instructor.id) ?? [];
+      const solvedCount = items.filter((item) => item.solved).length;
+
+      return {
+        instructor,
+        items,
+        solvedCount,
+        totalCount: items.length,
+        unsolvedCount: items.length - solvedCount,
+      } satisfies InstructorAssignedProblemProgress;
+    })
+    .sort((left, right) => {
+      if (right.totalCount !== left.totalCount) {
+        return right.totalCount - left.totalCount;
+      }
+
+      return getDisplayName(left.instructor).localeCompare(
+        getDisplayName(right.instructor),
+      );
+    });
+}
+
+export async function getInstructorAssignedProblemProgress(
+  studentId: string,
+  instructorId: string,
+) {
+  const progress = await listInstructorAssignedProblemProgress(studentId);
+  return progress.find((item) => item.instructor.id === instructorId) ?? null;
 }

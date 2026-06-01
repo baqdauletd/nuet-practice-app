@@ -1,17 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FormattedText } from "../shared/FormattedText";
 import {
-  listConnectedInstructorProblemLibrary,
+  listInstructorAssignedProblemProgress,
   listConnectedInstructors,
   listIncomingStudentConnectionRequests,
   respondToConnectionRequest,
 } from "../../lib/connections/client";
+import { getStudentInstructorRoute } from "../../lib/constants";
 import type {
   AppUserProfile,
   ConnectionRequestSummary,
-  InstructorProblemLibraryItem,
+  InstructorAssignedProblemProgress,
 } from "../../lib/types";
 
 function getDisplayName(profile: AppUserProfile) {
@@ -25,7 +26,9 @@ export function StudentConnectionsPanel({
 }) {
   const [requests, setRequests] = useState<ConnectionRequestSummary[]>([]);
   const [instructors, setInstructors] = useState<AppUserProfile[]>([]);
-  const [problemLibrary, setProblemLibrary] = useState<InstructorProblemLibraryItem[]>([]);
+  const [instructorProgress, setInstructorProgress] = useState<
+    InstructorAssignedProblemProgress[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRespondingId, setIsRespondingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,10 +42,10 @@ export function StudentConnectionsPanel({
         setIsLoading(true);
         setErrorMessage(null);
 
-        const [nextRequests, nextInstructors, nextLibrary] = await Promise.all([
+        const [nextRequests, nextInstructors, nextInstructorProgress] = await Promise.all([
           listIncomingStudentConnectionRequests(profile.id),
           listConnectedInstructors(profile.id),
-          listConnectedInstructorProblemLibrary(profile.id),
+          listInstructorAssignedProblemProgress(profile.id),
         ]);
 
         if (!isActive) {
@@ -51,7 +54,7 @@ export function StudentConnectionsPanel({
 
         setRequests(nextRequests);
         setInstructors(nextInstructors);
-        setProblemLibrary(nextLibrary);
+        setInstructorProgress(nextInstructorProgress);
       } catch (error) {
         if (!isActive) {
           return;
@@ -83,15 +86,15 @@ export function StudentConnectionsPanel({
 
     try {
       await respondToConnectionRequest(connectionId, profile.id, accepted);
-      const [nextRequests, nextInstructors, nextLibrary] = await Promise.all([
+      const [nextRequests, nextInstructors, nextInstructorProgress] = await Promise.all([
         listIncomingStudentConnectionRequests(profile.id),
         listConnectedInstructors(profile.id),
-        listConnectedInstructorProblemLibrary(profile.id),
+        listInstructorAssignedProblemProgress(profile.id),
       ]);
 
       setRequests(nextRequests);
       setInstructors(nextInstructors);
-      setProblemLibrary(nextLibrary);
+      setInstructorProgress(nextInstructorProgress);
       setSuccessMessage(
         accepted
           ? "Instructor connection accepted."
@@ -207,53 +210,38 @@ export function StudentConnectionsPanel({
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
         <h2 className="text-2xl font-semibold text-slate-950">
-          Instructor problem library
+          Instructor problem pages
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-700">
-          Browse approved problems from your connected instructors. Assigned problems are highlighted.
+          Open a separate page for each instructor and track how many assigned problems you have solved.
         </p>
 
         {isLoading ? (
-          <p className="mt-4 text-sm text-slate-600">Loading problem library...</p>
-        ) : problemLibrary.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">Loading instructor pages...</p>
+        ) : instructorProgress.length === 0 ? (
           <p className="mt-4 text-sm leading-7 text-slate-700">
-            No instructor problems are available yet.
+            No instructor pages are available yet.
           </p>
         ) : (
-          <div className="mt-5 grid gap-4">
-            {problemLibrary.map((item) => (
-              <article
-                key={item.problem.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {instructorProgress.map((item) => (
+              <Link
+                key={item.instructor.id}
+                href={getStudentInstructorRoute(item.instructor.id)}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-emerald-300 hover:bg-emerald-50"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">
-                      {getDisplayName(item.instructor)}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Instructor nickname: {item.instructor.nickname ?? "Unknown"}
-                    </p>
-                    {item.upload ? (
-                      <p className="mt-1 text-sm text-slate-600">
-                        Upload: {item.upload.originalFilename}
-                      </p>
-                    ) : null}
-                  </div>
-                  {item.assignmentId ? (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-amber-700 uppercase">
-                      Assigned to you
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                  <FormattedText
-                    text={item.problem.questionText}
-                    emptyText="Question text is missing."
-                  />
-                </div>
-              </article>
+                <p className="text-lg font-semibold text-slate-950">
+                  {getDisplayName(item.instructor)}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {item.solvedCount}/{item.totalCount}
+                </p>
+                <p className="mt-4 text-sm leading-7 text-slate-700">
+                  {item.unsolvedCount === 0
+                    ? "Everything assigned by this instructor is solved."
+                    : `${item.unsolvedCount} assigned problem${item.unsolvedCount === 1 ? "" : "s"} still pending.`}
+                </p>
+              </Link>
             ))}
           </div>
         )}

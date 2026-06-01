@@ -23,6 +23,10 @@ export function getStudentSessionsRoute() {
   return ROUTES.studentSessions;
 }
 
+export function getStudentInstructorRoute(instructorId: string) {
+  return `${ROUTES.student}/instructors/${instructorId}`;
+}
+
 export function getProblemSourceImageRoute(
   problemId: string,
   viewerId: string,
