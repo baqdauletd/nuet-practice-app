@@ -7,12 +7,17 @@ import {
   getSessionProgress,
   getTodaySession,
   createDailySession,
+  listDailySessionSourceOptions,
 } from "../../lib/student-sessions/client";
 import {
   getStudentSessionResultsRoute,
   getStudentSessionsRoute,
 } from "../../lib/constants";
-import type { AppUserProfile, SessionProgress } from "../../lib/types";
+import type {
+  AppUserProfile,
+  DailySessionSourceOption,
+  SessionProgress,
+} from "../../lib/types";
 
 function formatToday() {
   return new Intl.DateTimeFormat("en-US", {
@@ -43,9 +48,10 @@ export function StudentDashboardPanel({
   profile: AppUserProfile;
 }) {
   const router = useRouter();
-  const [selectedCount, setSelectedCount] = useState(5);
-  const [customCount, setCustomCount] = useState("5");
+  const [fileCustomCount, setFileCustomCount] = useState("2");
+  const [selectedUploadId, setSelectedUploadId] = useState("");
   const [todayProgress, setTodayProgress] = useState<SessionProgress | null>(null);
+  const [sourceOptions, setSourceOptions] = useState<DailySessionSourceOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,7 +64,16 @@ export function StudentDashboardPanel({
         setIsLoading(true);
         setErrorMessage(null);
 
-        const session = await getTodaySession(profile.id);
+        const [session, nextSourceOptions] = await Promise.all([
+          getTodaySession(profile.id),
+          listDailySessionSourceOptions(profile.id),
+        ]);
+
+        if (isActive) {
+          setSourceOptions(nextSourceOptions);
+          setSelectedUploadId((current) => current || nextSourceOptions[0]?.uploadId || "");
+        }
+
         if (!session) {
           if (isActive) {
             setTodayProgress(null);
@@ -94,11 +109,49 @@ export function StudentDashboardPanel({
     };
   }, [profile.id]);
 
-  async function handleStartPractice() {
-    const problemCount = Number.parseInt(customCount, 10);
+  async function handleStartWholeFile(uploadId: string) {
+    setIsStarting(true);
+    setErrorMessage(null);
 
-    if (!Number.isFinite(problemCount) || problemCount < 1 || problemCount > 30) {
-      setErrorMessage("Choose a daily problem count between 1 and 30.");
+    try {
+      const payload = await createDailySession({
+        studentId: profile.id,
+        uploadId,
+        useEntireUpload: true,
+      });
+      router.push(payload.firstProblemPath);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to start that file-based practice session.",
+      );
+    } finally {
+      setIsStarting(false);
+    }
+  }
+
+  async function handleStartCustomFilePractice() {
+    const problemCount = Number.parseInt(fileCustomCount, 10);
+
+    if (!selectedUploadId) {
+      setErrorMessage("Choose a file for the custom practice session.");
+      return;
+    }
+
+    if (!Number.isFinite(problemCount) || problemCount < 2 || problemCount > 30) {
+      setErrorMessage("Choose a custom file problem count between 2 and 30.");
+      return;
+    }
+
+    const selectedSource = sourceOptions.find(
+      (option) => option.uploadId === selectedUploadId,
+    );
+
+    if (selectedSource && problemCount > selectedSource.approvedProblemCount) {
+      setErrorMessage(
+        `This file only has ${selectedSource.approvedProblemCount} approved problems.`,
+      );
       return;
     }
 
@@ -106,26 +159,21 @@ export function StudentDashboardPanel({
     setErrorMessage(null);
 
     try {
-      const payload = await createDailySession(profile.id, problemCount);
+      const payload = await createDailySession({
+        studentId: profile.id,
+        problemCount,
+        uploadId: selectedUploadId,
+      });
       router.push(payload.firstProblemPath);
     } catch (error) {
-      const rawMessage =
+      setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to start today's practice.";
-      const message =
-        rawMessage === "Not enough approved problems available."
-          ? "Not enough approved problems are available yet. Ask the instructor to review and approve more Math problems first."
-          : rawMessage;
-      setErrorMessage(message);
+          : "Unable to start that custom file-based practice session.",
+      );
     } finally {
       setIsStarting(false);
     }
-  }
-
-  function handlePresetSelect(count: number) {
-    setSelectedCount(count);
-    setCustomCount(String(count));
   }
 
   return (
@@ -154,52 +202,87 @@ export function StudentDashboardPanel({
           Start today&apos;s practice
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-700">
-          Choose how many approved Math problems you want to solve today.
+          Solve one whole uploaded file, or choose a custom amount from a specific file.
         </p>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          {[3, 5, 7].map((count) => (
-            <button
-              key={count}
-              type="button"
-              onClick={() => handlePresetSelect(count)}
-              className={`min-h-12 rounded-full border px-5 py-3 text-base font-semibold transition ${
-                selectedCount === count
-                  ? "border-emerald-400 bg-emerald-100 text-emerald-800"
-                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-950"
-              }`}
-            >
-              {count} problems
-            </button>
-          ))}
-          <label className="flex min-h-12 items-center gap-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700">
-            <span>Custom</span>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={customCount}
-              onChange={(event) => {
-                setCustomCount(event.target.value);
-                setSelectedCount(Number.parseInt(event.target.value, 10) || 0);
-              }}
-              className="min-h-10 w-20 rounded-full border border-slate-200 px-3 py-1 text-base text-slate-900 outline-none focus:border-emerald-500"
-            />
-          </label>
+        <div className="mt-8 border-t border-slate-200 pt-6">
+          <h3 className="text-lg font-semibold text-slate-950">
+            Solve a whole file
+          </h3>
+          <p className="mt-2 text-sm leading-7 text-slate-700">
+            If an uploaded file has fewer than 15 approved problems, you can solve all of them in one session.
+          </p>
+          {isLoading ? (
+            <p className="mt-4 text-sm text-slate-600">Loading file options...</p>
+          ) : sourceOptions.filter((option) => option.canUseEntireUpload).length === 0 ? (
+            <p className="mt-4 text-sm leading-7 text-slate-700">
+              No uploaded files are currently eligible for an all-problems session.
+            </p>
+          ) : (
+            <div className="mt-5 flex flex-wrap gap-3">
+              {sourceOptions
+                .filter((option) => option.canUseEntireUpload)
+                .map((option) => (
+                  <button
+                    key={option.uploadId}
+                    type="button"
+                    onClick={() => void handleStartWholeFile(option.uploadId)}
+                    disabled={isStarting}
+                    className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    {option.originalFilename} - {option.approvedProblemCount} problems
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleStartPractice()}
-            disabled={isStarting}
-            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {isStarting ? "Starting..." : "Start today’s practice"}
-          </button>
-          <p className="text-sm text-slate-500">
-            You can start more than one practice session on the same day.
+        <div className="mt-8 border-t border-slate-200 pt-6">
+          <h3 className="text-lg font-semibold text-slate-950">
+            Custom from one file
+          </h3>
+          <p className="mt-2 text-sm leading-7 text-slate-700">
+            Choose at least 2 problems and the file they should come from.
           </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+            <label className="grid gap-2 text-sm text-slate-700">
+              <span>File</span>
+              <select
+                value={selectedUploadId}
+                onChange={(event) => setSelectedUploadId(event.target.value)}
+                className="min-h-12 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              >
+                <option value="">Choose a file</option>
+                {sourceOptions.map((option) => (
+                  <option key={option.uploadId} value={option.uploadId}>
+                    {option.originalFilename} ({option.approvedProblemCount} problems)
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm text-slate-700">
+              <span>Problems</span>
+              <input
+                type="number"
+                min={2}
+                max={30}
+                value={fileCustomCount}
+                onChange={(event) => setFileCustomCount(event.target.value)}
+                className="min-h-12 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void handleStartCustomFilePractice()}
+              disabled={isStarting}
+              className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              Start file practice
+            </button>
+          </div>
         </div>
 
         {errorMessage ? (

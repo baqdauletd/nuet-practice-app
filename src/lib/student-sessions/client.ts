@@ -3,6 +3,8 @@
 import { getStudentSessionProblemRoute } from "../constants";
 import { getInsforgeClient } from "../insforge/client";
 import type {
+  CreateDailySessionInput,
+  DailySessionSourceOption,
   DailySession,
   DailySessionProblem,
   GradingFeedback,
@@ -172,16 +174,40 @@ export async function getSessionById(sessionId: string) {
   return data ? toDailySession(data) : null;
 }
 
-export async function createDailySession(studentId: string, problemCount: number) {
+export async function listDailySessionSourceOptions(studentId: string) {
+  const response = await fetch(
+    `/api/student/create-session?studentId=${encodeURIComponent(studentId)}`,
+    {
+      method: "GET",
+    },
+  );
+
+  const payload = (await response.json()) as
+    | {
+        error?: string;
+      }
+    | {
+        options: DailySessionSourceOption[];
+      };
+
+  if (!response.ok || !("options" in payload)) {
+    throw new Error(
+      "error" in payload && payload.error
+        ? payload.error
+        : "Unable to load session source options.",
+    );
+  }
+
+  return payload.options;
+}
+
+export async function createDailySession(input: CreateDailySessionInput) {
   const response = await fetch("/api/student/create-session", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      studentId,
-      problemCount,
-    }),
+    body: JSON.stringify(input),
   });
 
   const payload = (await response.json()) as

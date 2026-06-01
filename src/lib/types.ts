@@ -138,6 +138,20 @@ export type StudentSessionSummary = {
   firstIncompleteIndex: number | null;
 };
 
+export type DailySessionSourceOption = {
+  uploadId: string;
+  originalFilename: string;
+  approvedProblemCount: number;
+  canUseEntireUpload: boolean;
+};
+
+export type CreateDailySessionInput = {
+  studentId: string;
+  problemCount?: number;
+  uploadId?: string;
+  useEntireUpload?: boolean;
+};
+
 export type ConnectionStatus = "pending" | "accepted" | "rejected";
 
 export type InstructorStudentConnection = {

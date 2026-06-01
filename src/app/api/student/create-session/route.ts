@@ -3,11 +3,16 @@ import {
   getCurrentServerUser,
   requireServerProfileRole,
 } from "../../../../lib/auth/server";
-import { createDailySession } from "../../../../lib/student-sessions/server";
+import {
+  createDailySession,
+  listDailySessionSourceOptions,
+} from "../../../../lib/student-sessions/server";
 
 const requestSchema = z.object({
   studentId: z.string().uuid(),
-  problemCount: z.number().int().min(1).max(30),
+  problemCount: z.number().int().min(1).max(30).optional(),
+  uploadId: z.string().uuid().optional(),
+  useEntireUpload: z.boolean().optional(),
 });
 
 function logRouteError(message: string, error: unknown, context?: object) {
@@ -26,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!parsed.success) {
       return Response.json(
-        { error: "Invalid studentId or problemCount." },
+        { error: "Invalid session request." },
         { status: 400 },
       );
     }
@@ -41,10 +46,7 @@ export async function POST(request: Request) {
 
     await requireServerProfileRole(parsed.data.studentId, "student");
     // TODO: Replace client-provided studentId with a server-authenticated user id once InsForge server session API is available.
-    const result = await createDailySession(
-      parsed.data.studentId,
-      parsed.data.problemCount,
-    );
+    const result = await createDailySession(parsed.data);
 
     return Response.json({
       sessionId: result.session.id,
@@ -62,6 +64,11 @@ export async function POST(request: Request) {
       {
         error:
           message === "Not enough approved problems available." ||
+          message === "That file does not have enough approved problems." ||
+          message === "This file is not eligible for an all-problems practice session." ||
+          message === "A file must be selected to solve all problems from one upload." ||
+          message === "Choose at least 2 problems when starting a file-based custom session." ||
+          message === "Choose a valid number of problems." ||
           message === "Profile not found." ||
           message === "Profile role must be student."
             ? message
@@ -70,6 +77,64 @@ export async function POST(request: Request) {
       {
         status:
           message === "Not enough approved problems available." ||
+          message === "That file does not have enough approved problems." ||
+          message === "This file is not eligible for an all-problems practice session." ||
+          message === "A file must be selected to solve all problems from one upload." ||
+          message === "Choose at least 2 problems when starting a file-based custom session." ||
+          message === "Choose a valid number of problems." ||
+          message === "Profile not found." ||
+          message === "Profile role must be student."
+            ? 400
+            : 500,
+      },
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("studentId");
+
+    if (!studentId) {
+      return Response.json({ error: "Missing studentId." }, { status: 400 });
+    }
+
+    const parsedStudentId = z.string().uuid().safeParse(studentId);
+
+    if (!parsedStudentId.success) {
+      return Response.json({ error: "Invalid studentId." }, { status: 400 });
+    }
+
+    const currentServerUser = await getCurrentServerUser();
+    if (currentServerUser.available) {
+      return Response.json(
+        { error: "Server-authenticated session enforcement is not wired yet." },
+        { status: 501 },
+      );
+    }
+
+    await requireServerProfileRole(parsedStudentId.data, "student");
+    const options = await listDailySessionSourceOptions();
+
+    return Response.json({ options });
+  } catch (error) {
+    logRouteError("Student session-source options failed.", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to load session source options.";
+
+    return Response.json(
+      {
+        error:
+          message === "Profile not found." ||
+          message === "Profile role must be student."
+            ? message
+            : "Unable to load session source options.",
+      },
+      {
+        status:
           message === "Profile not found." ||
           message === "Profile role must be student."
             ? 400

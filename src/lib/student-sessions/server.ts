@@ -6,6 +6,8 @@ import {
 } from "../constants";
 import { getInsforgeServerClient } from "../insforge/server";
 import type {
+  CreateDailySessionInput,
+  DailySessionSourceOption,
   DailySession,
   DailySessionProblem,
   GradingFeedback,
@@ -59,6 +61,13 @@ type SubmissionRow = {
 
 type ApprovedProblemRow = {
   id: string;
+  upload_id: string | null;
+  created_at: string | null;
+};
+
+type TestUploadSummaryRow = {
+  id: string;
+  original_filename: string;
   created_at: string | null;
 };
 
@@ -196,6 +205,198 @@ function getSessionStatus(progress: {
   }
 
   return "not_started" as const;
+}
+
+async function listApprovedMathProblems() {
+  const insforge = getInsforgeServerClient();
+  const { data, error } = await insforge.database
+    .from("problems")
+    .select("id, upload_id, created_at")
+    .eq("approved", true)
+    .eq("subject", "math");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => row as ApprovedProblemRow);
+}
+
+async function getLastSubmittedAtByProblemId(studentId: string) {
+  const insforge = getInsforgeServerClient();
+  const { data: studentSessionRows, error: studentSessionsError } = await insforge.database
+    .from("daily_sessions")
+    .select("id, created_at")
+    .eq("student_id", studentId);
+
+  if (studentSessionsError) {
+    throw new Error(studentSessionsError.message);
+  }
+
+  const studentSessions = (studentSessionRows ?? []).map(
+    (row) => row as StudentSessionHistoryRow,
+  );
+  const studentSessionIds = studentSessions.map((row) => row.id);
+  const sessionCreatedAtById = new Map(
+    studentSessions.map((row) => [row.id, row.created_at]),
+  );
+
+  let studentSessionProblems: StudentSessionProblemHistoryRow[] = [];
+
+  if (studentSessionIds.length > 0) {
+    const { data: studentSessionProblemRows, error: studentSessionProblemsError } =
+      await insforge.database
+        .from("daily_session_problems")
+        .select("id, session_id, problem_id")
+        .in("session_id", studentSessionIds);
+
+    if (studentSessionProblemsError) {
+      throw new Error(studentSessionProblemsError.message);
+    }
+
+    studentSessionProblems = (studentSessionProblemRows ?? []).map(
+      (row) => row as StudentSessionProblemHistoryRow,
+    );
+  }
+
+  const sessionProblemById = new Map(
+    studentSessionProblems.map((row) => [row.id, row]),
+  );
+  const studentSessionProblemIds = studentSessionProblems.map((row) => row.id);
+  const lastSubmittedAtByProblemId = new Map<string, string>();
+
+  if (studentSessionProblemIds.length > 0) {
+    const { data: submissionRows, error: submissionsError } = await insforge.database
+      .from("submissions")
+      .select("session_problem_id, submitted_at")
+      .eq("student_id", studentId)
+      .in("session_problem_id", studentSessionProblemIds);
+
+    if (submissionsError) {
+      throw new Error(submissionsError.message);
+    }
+
+    for (const submissionRow of submissionRows ?? []) {
+      const sessionProblemId = submissionRow.session_problem_id as string | null;
+      const sessionProblem = sessionProblemId
+        ? sessionProblemById.get(sessionProblemId)
+        : null;
+      const problemId = sessionProblem?.problem_id;
+
+      if (!problemId) {
+        continue;
+      }
+
+      const fallbackTimestamp = sessionProblem.session_id
+        ? sessionCreatedAtById.get(sessionProblem.session_id) ?? null
+        : null;
+      const usedAt = (submissionRow.submitted_at as string | null) ?? fallbackTimestamp;
+      const existingUsedAt = lastSubmittedAtByProblemId.get(problemId) ?? null;
+
+      if (!existingUsedAt || compareNullableStrings(existingUsedAt, usedAt) < 0) {
+        lastSubmittedAtByProblemId.set(problemId, usedAt ?? "");
+      }
+    }
+  }
+
+  return lastSubmittedAtByProblemId;
+}
+
+function sortProblemsForStudentReuse(
+  problems: ApprovedProblemRow[],
+  lastSubmittedAtByProblemId: Map<string, string>,
+) {
+  return problems.slice().sort((left, right) => {
+    const leftLastSubmittedAt = lastSubmittedAtByProblemId.get(left.id) ?? null;
+    const rightLastSubmittedAt = lastSubmittedAtByProblemId.get(right.id) ?? null;
+
+    if (leftLastSubmittedAt === null && rightLastSubmittedAt !== null) {
+      return -1;
+    }
+
+    if (leftLastSubmittedAt !== null && rightLastSubmittedAt === null) {
+      return 1;
+    }
+
+    const usageComparison = compareNullableStrings(
+      leftLastSubmittedAt,
+      rightLastSubmittedAt,
+    );
+
+    if (usageComparison !== 0) {
+      return usageComparison;
+    }
+
+    const createdAtComparison = compareNullableStrings(
+      left.created_at,
+      right.created_at,
+    );
+
+    if (createdAtComparison !== 0) {
+      return createdAtComparison;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
+export async function listDailySessionSourceOptions(): Promise<
+  DailySessionSourceOption[]
+> {
+  const approvedProblems = await listApprovedMathProblems();
+  const approvedCountsByUploadId = new Map<string, number>();
+
+  for (const problem of approvedProblems) {
+    if (!problem.upload_id) {
+      continue;
+    }
+
+    approvedCountsByUploadId.set(
+      problem.upload_id,
+      (approvedCountsByUploadId.get(problem.upload_id) ?? 0) + 1,
+    );
+  }
+
+  const uploadIds = [...approvedCountsByUploadId.keys()];
+
+  if (uploadIds.length === 0) {
+    return [];
+  }
+
+  const insforge = getInsforgeServerClient();
+  const { data: uploadRows, error: uploadError } = await insforge.database
+    .from("test_uploads")
+    .select("id, original_filename, created_at")
+    .in("id", uploadIds);
+
+  if (uploadError) {
+    throw new Error(uploadError.message);
+  }
+
+  return (uploadRows ?? [])
+    .map((row) => row as TestUploadSummaryRow)
+    .map((row) => {
+      const approvedProblemCount = approvedCountsByUploadId.get(row.id) ?? 0;
+
+      return {
+        uploadId: row.id,
+        originalFilename: row.original_filename,
+        approvedProblemCount,
+        canUseEntireUpload: approvedProblemCount >= 2 && approvedProblemCount < 15,
+      } satisfies DailySessionSourceOption;
+    })
+    .filter((item) => item.approvedProblemCount >= 2)
+    .sort((left, right) => {
+      if (left.canUseEntireUpload !== right.canUseEntireUpload) {
+        return left.canUseEntireUpload ? -1 : 1;
+      }
+
+      if (right.approvedProblemCount !== left.approvedProblemCount) {
+        return right.approvedProblemCount - left.approvedProblemCount;
+      }
+
+      return left.originalFilename.localeCompare(right.originalFilename);
+    });
 }
 
 export async function getTodaySession(studentId: string) {
@@ -468,138 +669,56 @@ export async function getSessionProgress(
   };
 }
 
-export async function createDailySession(studentId: string, problemCount: number) {
+export async function createDailySession({
+  studentId,
+  problemCount,
+  uploadId,
+  useEntireUpload,
+}: CreateDailySessionInput) {
   const insforge = getInsforgeServerClient();
   const today = getTodayDateString();
-  const { data: approvedProblemRows, error: approvedProblemsError } =
-    await insforge.database
-      .from("problems")
-      .select("id, created_at")
-      .eq("approved", true)
-      .eq("subject", "math");
+  const approvedProblems = await listApprovedMathProblems();
+  const candidateProblems = uploadId
+    ? approvedProblems.filter((problem) => problem.upload_id === uploadId)
+    : approvedProblems;
+  let resolvedProblemCount = problemCount ?? 0;
 
-  if (approvedProblemsError) {
-    throw new Error(approvedProblemsError.message);
-  }
-
-  const approvedProblems = (approvedProblemRows ?? []).map(
-    (row) => row as ApprovedProblemRow,
-  );
-
-  if (approvedProblems.length < problemCount) {
-    throw new Error("Not enough approved problems available.");
-  }
-
-  const { data: studentSessionRows, error: studentSessionsError } = await insforge.database
-    .from("daily_sessions")
-    .select("id, created_at")
-    .eq("student_id", studentId);
-
-  if (studentSessionsError) {
-    throw new Error(studentSessionsError.message);
-  }
-
-  const studentSessions = (studentSessionRows ?? []).map(
-    (row) => row as StudentSessionHistoryRow,
-  );
-  const studentSessionIds = studentSessions.map((row) => row.id);
-  const sessionCreatedAtById = new Map(
-    studentSessions.map((row) => [row.id, row.created_at]),
-  );
-
-  let studentSessionProblems: StudentSessionProblemHistoryRow[] = [];
-
-  if (studentSessionIds.length > 0) {
-    const { data: studentSessionProblemRows, error: studentSessionProblemsError } =
-      await insforge.database
-        .from("daily_session_problems")
-        .select("id, session_id, problem_id")
-        .in("session_id", studentSessionIds);
-
-    if (studentSessionProblemsError) {
-      throw new Error(studentSessionProblemsError.message);
+  if (useEntireUpload) {
+    if (!uploadId) {
+      throw new Error("A file must be selected to solve all problems from one upload.");
     }
 
-    studentSessionProblems = (studentSessionProblemRows ?? []).map(
-      (row) => row as StudentSessionProblemHistoryRow,
+    if (candidateProblems.length < 2 || candidateProblems.length >= 15) {
+      throw new Error(
+        "This file is not eligible for an all-problems practice session.",
+      );
+    }
+
+    resolvedProblemCount = candidateProblems.length;
+  } else if (uploadId) {
+    if (!Number.isFinite(problemCount) || !problemCount || problemCount < 2) {
+      throw new Error(
+        "Choose at least 2 problems when starting a file-based custom session.",
+      );
+    }
+  } else if (!Number.isFinite(problemCount) || !problemCount || problemCount < 1) {
+    throw new Error("Choose a valid number of problems.");
+  }
+
+  if (candidateProblems.length < resolvedProblemCount) {
+    throw new Error(
+      uploadId
+        ? "That file does not have enough approved problems."
+        : "Not enough approved problems available.",
     );
   }
 
-  const sessionProblemById = new Map(
-    studentSessionProblems.map((row) => [row.id, row]),
-  );
-  const studentSessionProblemIds = studentSessionProblems.map((row) => row.id);
-  const lastSubmittedAtByProblemId = new Map<string, string>();
-
-  if (studentSessionProblemIds.length > 0) {
-    const { data: submissionRows, error: submissionsError } = await insforge.database
-      .from("submissions")
-      .select("session_problem_id, submitted_at")
-      .eq("student_id", studentId)
-      .in("session_problem_id", studentSessionProblemIds);
-
-    if (submissionsError) {
-      throw new Error(submissionsError.message);
-    }
-
-    for (const submissionRow of submissionRows ?? []) {
-      const sessionProblemId = submissionRow.session_problem_id as string | null;
-      const sessionProblem = sessionProblemId
-        ? sessionProblemById.get(sessionProblemId)
-        : null;
-      const problemId = sessionProblem?.problem_id;
-
-      if (!problemId) {
-        continue;
-      }
-
-      const fallbackTimestamp = sessionProblem.session_id
-        ? sessionCreatedAtById.get(sessionProblem.session_id) ?? null
-        : null;
-      const usedAt = (submissionRow.submitted_at as string | null) ?? fallbackTimestamp;
-      const existingUsedAt = lastSubmittedAtByProblemId.get(problemId) ?? null;
-
-      if (!existingUsedAt || compareNullableStrings(existingUsedAt, usedAt) < 0) {
-        lastSubmittedAtByProblemId.set(problemId, usedAt ?? "");
-      }
-    }
-  }
-
-  const selectedProblemIds = approvedProblems
-    .slice()
-    .sort((left, right) => {
-      const leftLastSubmittedAt = lastSubmittedAtByProblemId.get(left.id) ?? null;
-      const rightLastSubmittedAt = lastSubmittedAtByProblemId.get(right.id) ?? null;
-
-      if (leftLastSubmittedAt === null && rightLastSubmittedAt !== null) {
-        return -1;
-      }
-
-      if (leftLastSubmittedAt !== null && rightLastSubmittedAt === null) {
-        return 1;
-      }
-
-      const usageComparison = compareNullableStrings(
-        leftLastSubmittedAt,
-        rightLastSubmittedAt,
-      );
-
-      if (usageComparison !== 0) {
-        return usageComparison;
-      }
-
-      const createdAtComparison = compareNullableStrings(
-        left.created_at,
-        right.created_at,
-      );
-
-      if (createdAtComparison !== 0) {
-        return createdAtComparison;
-      }
-
-      return left.id.localeCompare(right.id);
-    })
-    .slice(0, problemCount)
+  const lastSubmittedAtByProblemId = await getLastSubmittedAtByProblemId(studentId);
+  const selectedProblemIds = sortProblemsForStudentReuse(
+    candidateProblems,
+    lastSubmittedAtByProblemId,
+  )
+    .slice(0, resolvedProblemCount)
     .map((problem) => problem.id);
 
   const { data: createdSessionRows, error: createSessionError } = await insforge.database
@@ -608,7 +727,7 @@ export async function createDailySession(studentId: string, problemCount: number
       {
         student_id: studentId,
         session_date: today,
-        problem_count: problemCount,
+        problem_count: resolvedProblemCount,
         completed: false,
       },
     ])
@@ -641,7 +760,7 @@ export async function createDailySession(studentId: string, problemCount: number
 
   return {
     session,
-    problemCount,
+    problemCount: resolvedProblemCount,
     firstProblemPath: getStudentSessionProblemRoute(session.id, 1),
     created: true,
   };
