@@ -67,7 +67,7 @@ export async function POST(request: Request) {
           message === "That file does not have enough approved problems." ||
           message === "This file is not eligible for an all-problems practice session." ||
           message === "A file must be selected to solve all problems from one upload." ||
-          message === "Choose at least 2 problems when starting a file-based custom session." ||
+          message === "Choose at least 1 problem when starting a file-based custom session." ||
           message === "Choose a valid number of problems." ||
           message === "Profile not found." ||
           message === "Profile role must be student."
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
           message === "That file does not have enough approved problems." ||
           message === "This file is not eligible for an all-problems practice session." ||
           message === "A file must be selected to solve all problems from one upload." ||
-          message === "Choose at least 2 problems when starting a file-based custom session." ||
+          message === "Choose at least 1 problem when starting a file-based custom session." ||
           message === "Choose a valid number of problems." ||
           message === "Profile not found." ||
           message === "Profile role must be student."
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
     }
 
     await requireServerProfileRole(parsedStudentId.data, "student");
-    const options = await listDailySessionSourceOptions();
+    const options = await listDailySessionSourceOptions(parsedStudentId.data);
 
     return Response.json({ options });
   } catch (error) {

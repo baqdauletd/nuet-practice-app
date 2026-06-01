@@ -64,6 +64,23 @@ type AssignedProblemRow = {
   created_at: string | null;
 };
 
+type DailySessionRow = {
+  id: string;
+  student_id: string | null;
+  completed: boolean;
+};
+
+type DailySessionProblemRow = {
+  id: string;
+  session_id: string | null;
+  problem_id: string | null;
+  order_index: number;
+};
+
+type SubmissionRow = {
+  session_problem_id: string | null;
+};
+
 function toProfile(row: ProfileRow): AppUserProfile {
   return {
     id: row.id,
@@ -413,6 +430,161 @@ async function listSolvedAssignedProblemIdsForStudent(
   );
 }
 
+async function appendAssignedProblemsToActiveWholeFileSessions(
+  studentId: string,
+  previousAssignedProblemIdsByUploadId: Map<string, string[]>,
+  newProblemIdsByUploadId: Map<string, string[]>,
+) {
+  if (newProblemIdsByUploadId.size === 0) {
+    return;
+  }
+
+  const insforge = getInsforgeClient();
+  const { data: sessionData, error: sessionError } = await insforge.database
+    .from("daily_sessions")
+    .select("id, student_id, completed")
+    .eq("student_id", studentId)
+    .eq("completed", false);
+
+  if (sessionError) {
+    throw new Error(sessionError.message);
+  }
+
+  const sessions = (sessionData ?? []) as DailySessionRow[];
+  const sessionIds = sessions.map((session) => session.id);
+
+  if (sessionIds.length === 0) {
+    return;
+  }
+
+  const { data: sessionProblemData, error: sessionProblemError } = await insforge.database
+    .from("daily_session_problems")
+    .select("id, session_id, problem_id, order_index")
+    .in("session_id", sessionIds)
+    .order("order_index", { ascending: true });
+
+  if (sessionProblemError) {
+    throw new Error(sessionProblemError.message);
+  }
+
+  const sessionProblems = (sessionProblemData ?? []) as DailySessionProblemRow[];
+  const sessionProblemIds = sessionProblems.map((item) => item.id);
+
+  if (sessionProblemIds.length === 0) {
+    return;
+  }
+
+  const problems = await listProblemsByIds(
+    sessionProblems
+      .map((item) => item.problem_id)
+      .filter((value): value is string => typeof value === "string"),
+    { includeAnswers: false },
+  );
+  const problemsById = new Map(problems.map((problem) => [problem.id, problem]));
+  const { data: submissionData, error: submissionError } = await insforge.database
+    .from("submissions")
+    .select("session_problem_id")
+    .eq("student_id", studentId)
+    .in("session_problem_id", sessionProblemIds);
+
+  if (submissionError) {
+    throw new Error(submissionError.message);
+  }
+
+  const submittedSessionProblemIds = new Set(
+    ((submissionData ?? []) as SubmissionRow[])
+      .map((row) => row.session_problem_id)
+      .filter((value): value is string => typeof value === "string"),
+  );
+
+  const sessionProblemsBySessionId = new Map<string, DailySessionProblemRow[]>();
+  for (const sessionProblem of sessionProblems) {
+    if (!sessionProblem.session_id) {
+      continue;
+    }
+
+    const current = sessionProblemsBySessionId.get(sessionProblem.session_id) ?? [];
+    current.push(sessionProblem);
+    sessionProblemsBySessionId.set(sessionProblem.session_id, current);
+  }
+
+  for (const session of sessions) {
+    const currentSessionProblems = sessionProblemsBySessionId.get(session.id) ?? [];
+    if (currentSessionProblems.length === 0) {
+      continue;
+    }
+
+    const submittedCount = currentSessionProblems.filter((sessionProblem) =>
+      submittedSessionProblemIds.has(sessionProblem.id),
+    ).length;
+
+    if (submittedCount >= currentSessionProblems.length) {
+      continue;
+    }
+
+    const currentProblems = currentSessionProblems
+      .map((item) => (item.problem_id ? problemsById.get(item.problem_id) ?? null : null))
+      .filter((item): item is Problem => item !== null);
+
+    if (currentProblems.length !== currentSessionProblems.length) {
+      continue;
+    }
+
+    const uploadIds = new Set(
+      currentProblems
+        .map((problem) => problem.uploadId)
+        .filter((value): value is string => typeof value === "string"),
+    );
+
+    if (uploadIds.size !== 1) {
+      continue;
+    }
+
+    const [uploadId] = [...uploadIds];
+    const previousAssignedProblemIds =
+      previousAssignedProblemIdsByUploadId.get(uploadId) ?? [];
+    const newProblemIds = newProblemIdsByUploadId.get(uploadId) ?? [];
+
+    if (previousAssignedProblemIds.length === 0 || newProblemIds.length === 0) {
+      continue;
+    }
+
+    const currentProblemIds = currentSessionProblems
+      .map((item) => item.problem_id)
+      .filter((value): value is string => typeof value === "string");
+
+    if (currentProblemIds.length !== previousAssignedProblemIds.length) {
+      continue;
+    }
+
+    const currentProblemIdSet = new Set(currentProblemIds);
+    const matchesWholeFileSession = previousAssignedProblemIds.every((problemId) =>
+      currentProblemIdSet.has(problemId),
+    );
+
+    if (!matchesWholeFileSession) {
+      continue;
+    }
+
+    const nextOrderIndex =
+      Math.max(...currentSessionProblems.map((item) => item.order_index)) + 1;
+
+    const { error: insertError } = await insforge.database
+      .from("daily_session_problems")
+      .insert(
+        newProblemIds.map((problemId, index) => ({
+          session_id: session.id,
+          problem_id: problemId,
+          order_index: nextOrderIndex + index,
+        })),
+      );
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+  }
+}
+
 export async function sendConnectionRequestByNickname(
   instructorId: string,
   studentNickname: string,
@@ -564,10 +736,10 @@ export async function listInstructorOwnedApprovedProblems(instructorId: string) 
   }));
 }
 
-export async function assignProblemToStudent(
+export async function assignProblemsToStudent(
   instructorId: string,
   studentId: string,
-  problemId: string,
+  problemIds: string[],
 ) {
   const connection = await getConnectionByPair(instructorId, studentId);
 
@@ -575,10 +747,21 @@ export async function assignProblemToStudent(
     throw new Error("This student is not connected to you.");
   }
 
-  const availableProblems = await listInstructorOwnedApprovedProblems(instructorId);
-  const target = availableProblems.find((item) => item.problem.id === problemId);
+  const uniqueProblemIds = [...new Set(problemIds)];
 
-  if (!target) {
+  if (uniqueProblemIds.length === 0) {
+    throw new Error("Choose at least one problem to assign.");
+  }
+
+  const availableProblems = await listInstructorOwnedApprovedProblems(instructorId);
+  const availableProblemsById = new Map(
+    availableProblems.map((item) => [item.problem.id, item]),
+  );
+  const missingProblemId = uniqueProblemIds.find(
+    (problemId) => !availableProblemsById.has(problemId),
+  );
+
+  if (missingProblemId) {
     throw new Error("Problem not found for this instructor.");
   }
 
@@ -587,29 +770,46 @@ export async function assignProblemToStudent(
     .from("assigned_problems")
     .select("id, instructor_id, student_id, problem_id, created_at")
     .eq("instructor_id", instructorId)
-    .eq("student_id", studentId)
-    .eq("problem_id", problemId)
-    .maybeSingle<AssignedProblemRow>();
+    .eq("student_id", studentId);
 
   if (existing.error) {
     throw new Error(existing.error.message);
   }
 
-  if (existing.data) {
-    throw new Error("That problem is already assigned to this student.");
+  const existingRows = (existing.data ?? []) as AssignedProblemRow[];
+  const existingProblemIds = new Set(existingRows.map((row) => row.problem_id));
+  const newProblemIds = uniqueProblemIds.filter(
+    (problemId) => !existingProblemIds.has(problemId),
+  );
+
+  if (newProblemIds.length === 0) {
+    throw new Error("All selected problems are already assigned to this student.");
+  }
+
+  const previousAssignedProblemIdsByUploadId = new Map<string, string[]>();
+  for (const row of existingRows) {
+    const availableProblem = availableProblemsById.get(row.problem_id);
+    const uploadId = availableProblem?.problem.uploadId;
+    if (!uploadId) {
+      continue;
+    }
+
+    const current = previousAssignedProblemIdsByUploadId.get(uploadId) ?? [];
+    current.push(row.problem_id);
+    previousAssignedProblemIdsByUploadId.set(uploadId, current);
   }
 
   const { data, error } = await insforge.database
     .from("assigned_problems")
-    .insert([
-      {
+    .insert(
+      newProblemIds.map((problemId) => ({
         instructor_id: instructorId,
         student_id: studentId,
         problem_id: problemId,
-      },
-    ])
+      })),
+    )
     .select("id, instructor_id, student_id, problem_id, created_at")
-    .single<AssignedProblemRow>();
+    .returns<AssignedProblemRow[]>();
 
   if (error) {
     throw new Error(error.message);
@@ -617,15 +817,54 @@ export async function assignProblemToStudent(
 
   const [instructor] = await listProfilesByIds([instructorId]);
   const [student] = await listProfilesByIds([studentId]);
+  const insertedRows = (data ?? []) as AssignedProblemRow[];
+  const newProblemIdsByUploadId = new Map<string, string[]>();
 
-  return {
-    id: data.id,
-    instructor,
-    student,
-    problem: target.problem,
-    upload: target.upload,
-    createdAt: data.created_at,
-  } satisfies AssignedProblem;
+  for (const problemId of newProblemIds) {
+    const availableProblem = availableProblemsById.get(problemId);
+    const uploadId = availableProblem?.problem.uploadId;
+    if (!uploadId) {
+      continue;
+    }
+
+    const current = newProblemIdsByUploadId.get(uploadId) ?? [];
+    current.push(problemId);
+    newProblemIdsByUploadId.set(uploadId, current);
+  }
+
+  await appendAssignedProblemsToActiveWholeFileSessions(
+    studentId,
+    previousAssignedProblemIdsByUploadId,
+    newProblemIdsByUploadId,
+  );
+
+  return insertedRows
+    .map((row) => {
+      const target = availableProblemsById.get(row.problem_id);
+
+      if (!target || !instructor || !student) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        instructor,
+        student,
+        problem: target.problem,
+        upload: target.upload,
+        createdAt: row.created_at,
+      } satisfies AssignedProblem;
+    })
+    .filter((item): item is AssignedProblem => item !== null);
+}
+
+export async function assignProblemToStudent(
+  instructorId: string,
+  studentId: string,
+  problemId: string,
+) {
+  const assigned = await assignProblemsToStudent(instructorId, studentId, [problemId]);
+  return assigned[0] ?? null;
 }
 
 export async function listAssignedProblemsForStudent(studentId: string) {

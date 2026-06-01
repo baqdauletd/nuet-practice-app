@@ -82,6 +82,14 @@ type StudentSessionProblemHistoryRow = {
   problem_id: string | null;
 };
 
+type AssignedProblemRow = {
+  id: string;
+  instructor_id: string;
+  student_id: string;
+  problem_id: string;
+  created_at: string | null;
+};
+
 function getTodayDateString() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Oral",
@@ -340,13 +348,63 @@ function sortProblemsForStudentReuse(
   });
 }
 
-export async function listDailySessionSourceOptions(): Promise<
-  DailySessionSourceOption[]
-> {
-  const approvedProblems = await listApprovedMathProblems();
+async function listAssignedProblemRowsForStudent(studentId: string) {
+  const insforge = getInsforgeServerClient();
+  const { data, error } = await insforge.database
+    .from("assigned_problems")
+    .select("id, instructor_id, student_id, problem_id, created_at")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => row as AssignedProblemRow);
+}
+
+async function listAssignedUnsolvedProblemsForStudent(studentId: string) {
+  const assignedRows = await listAssignedProblemRowsForStudent(studentId);
+
+  if (assignedRows.length === 0) {
+    return [] as ApprovedProblemRow[];
+  }
+
+  const problems = await getProblemRows(assignedRows.map((row) => row.problem_id));
+  const assignedProblemIds = new Set(assignedRows.map((row) => row.problem_id));
+  const solvedProblemIds = await getSolvedProblemIdsForStudent(
+    studentId,
+    [...assignedProblemIds],
+  );
+
+  return problems
+    .filter((problem) => problem.approved && problem.subject === "math")
+    .filter((problem) => !solvedProblemIds.has(problem.id))
+    .map((problem) => ({
+      id: problem.id,
+      upload_id: problem.uploadId,
+      created_at: problem.createdAt,
+    }));
+}
+
+async function getSolvedProblemIdsForStudent(studentId: string, problemIds: string[]) {
+  if (problemIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const lastSubmittedAtByProblemId = await getLastSubmittedAtByProblemId(studentId);
+  return new Set(
+    problemIds.filter((problemId) => lastSubmittedAtByProblemId.has(problemId)),
+  );
+}
+
+export async function listDailySessionSourceOptions(
+  studentId: string,
+): Promise<DailySessionSourceOption[]> {
+  const unsolvedAssignedProblems = await listAssignedUnsolvedProblemsForStudent(studentId);
   const approvedCountsByUploadId = new Map<string, number>();
 
-  for (const problem of approvedProblems) {
+  for (const problem of unsolvedAssignedProblems) {
     if (!problem.upload_id) {
       continue;
     }
@@ -382,10 +440,10 @@ export async function listDailySessionSourceOptions(): Promise<
         uploadId: row.id,
         originalFilename: row.original_filename,
         approvedProblemCount,
-        canUseEntireUpload: approvedProblemCount >= 2 && approvedProblemCount < 15,
+        canUseEntireUpload: approvedProblemCount >= 1 && approvedProblemCount < 15,
       } satisfies DailySessionSourceOption;
     })
-    .filter((item) => item.approvedProblemCount >= 2)
+    .filter((item) => item.approvedProblemCount >= 1)
     .sort((left, right) => {
       if (left.canUseEntireUpload !== right.canUseEntireUpload) {
         return left.canUseEntireUpload ? -1 : 1;
@@ -677,7 +735,9 @@ export async function createDailySession({
 }: CreateDailySessionInput) {
   const insforge = getInsforgeServerClient();
   const today = getTodayDateString();
-  const approvedProblems = await listApprovedMathProblems();
+  const approvedProblems = uploadId
+    ? await listAssignedUnsolvedProblemsForStudent(studentId)
+    : await listApprovedMathProblems();
   const candidateProblems = uploadId
     ? approvedProblems.filter((problem) => problem.upload_id === uploadId)
     : approvedProblems;
@@ -688,7 +748,7 @@ export async function createDailySession({
       throw new Error("A file must be selected to solve all problems from one upload.");
     }
 
-    if (candidateProblems.length < 2 || candidateProblems.length >= 15) {
+    if (candidateProblems.length < 1 || candidateProblems.length >= 15) {
       throw new Error(
         "This file is not eligible for an all-problems practice session.",
       );
@@ -696,9 +756,9 @@ export async function createDailySession({
 
     resolvedProblemCount = candidateProblems.length;
   } else if (uploadId) {
-    if (!Number.isFinite(problemCount) || !problemCount || problemCount < 2) {
+    if (!Number.isFinite(problemCount) || !problemCount || problemCount < 1) {
       throw new Error(
-        "Choose at least 2 problems when starting a file-based custom session.",
+        "Choose at least 1 problem when starting a file-based custom session.",
       );
     }
   } else if (!Number.isFinite(problemCount) || !problemCount || problemCount < 1) {

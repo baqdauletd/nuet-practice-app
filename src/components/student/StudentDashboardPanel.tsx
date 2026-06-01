@@ -139,8 +139,8 @@ export function StudentDashboardPanel({
       return;
     }
 
-    if (!Number.isFinite(problemCount) || problemCount < 2 || problemCount > 30) {
-      setErrorMessage("Choose a custom file problem count between 2 and 30.");
+    if (!Number.isFinite(problemCount) || problemCount < 1 || problemCount > 30) {
+      setErrorMessage("Choose a custom file problem count between 1 and 30.");
       return;
     }
 
@@ -242,7 +242,7 @@ export function StudentDashboardPanel({
             Custom from one file
           </h3>
           <p className="mt-2 text-sm leading-7 text-slate-700">
-            Choose at least 2 problems and the file they should come from.
+            Choose at least 1 problem and the file it should come from.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
@@ -266,7 +266,7 @@ export function StudentDashboardPanel({
               <span>Problems</span>
               <input
                 type="number"
-                min={2}
+                min={1}
                 max={30}
                 value={fileCustomCount}
                 onChange={(event) => setFileCustomCount(event.target.value)}

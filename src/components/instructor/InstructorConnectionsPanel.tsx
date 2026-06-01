@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { FormattedText } from "../shared/FormattedText";
 import {
-  assignProblemToStudent,
+  assignProblemsToStudent,
   listAssignedProblemsForInstructorStudent,
   listConnectedStudents,
   listInstructorConnectionRequests,
@@ -40,7 +40,7 @@ export function InstructorConnectionsPanel({
     Array<{ problem: AssignedProblem["problem"]; upload: AssignedProblem["upload"] }>
   >([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const [selectedProblemId, setSelectedProblemId] = useState("");
+  const [pendingProblemIds, setPendingProblemIds] = useState<string[]>([]);
   const [assignedProblems, setAssignedProblems] = useState<AssignedProblem[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<StudentSessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState("");
@@ -74,7 +74,6 @@ export function InstructorConnectionsPanel({
         setStudents(nextStudents);
         setOwnedProblems(nextOwnedProblems);
         setSelectedStudentId((current) => current || nextStudents[0]?.id || "");
-        setSelectedProblemId((current) => current || nextOwnedProblems[0]?.problem.id || "");
       } catch (error) {
         if (!isActive) {
           return;
@@ -196,6 +195,36 @@ export function InstructorConnectionsPanel({
     () => students.find((student) => student.id === selectedStudentId) ?? null,
     [selectedStudentId, students],
   );
+  const assignedProblemIds = useMemo(
+    () => new Set(assignedProblems.map((assignment) => assignment.problem.id)),
+    [assignedProblems],
+  );
+  const groupedOwnedProblems = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        uploadId: string;
+        uploadName: string;
+        items: Array<{ problem: AssignedProblem["problem"]; upload: AssignedProblem["upload"] }>;
+      }
+    >();
+
+    for (const item of ownedProblems) {
+      const uploadId = item.upload?.id ?? `missing-${item.problem.id}`;
+      const uploadName = item.upload?.originalFilename ?? "Untitled upload";
+      const current = groups.get(uploadId) ?? {
+        uploadId,
+        uploadName,
+        items: [],
+      };
+      current.items.push(item);
+      groups.set(uploadId, current);
+    }
+
+    return [...groups.values()].sort((left, right) =>
+      left.uploadName.localeCompare(right.uploadName),
+    );
+  }, [ownedProblems]);
 
   async function handleSendRequest() {
     if (!studentNickname.trim()) {
@@ -223,8 +252,8 @@ export function InstructorConnectionsPanel({
     }
   }
 
-  async function handleAssignProblem() {
-    if (!selectedStudentId || !selectedProblemId) {
+  async function handleAssignProblems() {
+    if (!selectedStudentId || pendingProblemIds.length === 0) {
       return;
     }
 
@@ -233,13 +262,14 @@ export function InstructorConnectionsPanel({
     setSuccessMessage(null);
 
     try {
-      await assignProblemToStudent(profile.id, selectedStudentId, selectedProblemId);
+      await assignProblemsToStudent(profile.id, selectedStudentId, pendingProblemIds);
       const nextAssigned = await listAssignedProblemsForInstructorStudent(
         profile.id,
         selectedStudentId,
       );
       setAssignedProblems(nextAssigned);
-      setSuccessMessage("Problem assigned to student.");
+      setPendingProblemIds([]);
+      setSuccessMessage("Problems assigned to student.");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -249,6 +279,23 @@ export function InstructorConnectionsPanel({
     } finally {
       setIsAssigning(false);
     }
+  }
+
+  function togglePendingProblem(problemId: string) {
+    if (assignedProblemIds.has(problemId)) {
+      return;
+    }
+
+    setPendingProblemIds((current) =>
+      current.includes(problemId)
+        ? current.filter((item) => item !== problemId)
+        : [...current, problemId],
+    );
+  }
+
+  function handleStudentSelection(studentId: string) {
+    setSelectedStudentId(studentId);
+    setPendingProblemIds([]);
   }
 
   return (
@@ -327,7 +374,7 @@ export function InstructorConnectionsPanel({
                     <button
                       key={student.id}
                       type="button"
-                      onClick={() => setSelectedStudentId(student.id)}
+                      onClick={() => handleStudentSelection(student.id)}
                       className={`rounded-2xl border px-4 py-4 text-left transition ${
                         selectedStudentId === student.id
                           ? "border-emerald-400 bg-emerald-50"
@@ -354,13 +401,13 @@ export function InstructorConnectionsPanel({
           Assign approved problems
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-700">
-          Pick a connected student and assign any approved problem from your uploads.
+          Choose a student, then tick approved problems under each uploaded file. Checked problems are already assigned or will be assigned.
         </p>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_auto]">
+        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
           <select
             value={selectedStudentId}
-            onChange={(event) => setSelectedStudentId(event.target.value)}
+            onChange={(event) => handleStudentSelection(event.target.value)}
             className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
           >
             <option value="">Choose student</option>
@@ -371,54 +418,78 @@ export function InstructorConnectionsPanel({
             ))}
           </select>
 
-          <select
-            value={selectedProblemId}
-            onChange={(event) => setSelectedProblemId(event.target.value)}
-            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
-          >
-            <option value="">Choose approved problem</option>
-            {ownedProblems.map((item) => (
-              <option key={item.problem.id} value={item.problem.id}>
-                {item.upload?.originalFilename ?? "Untitled upload"}: {item.problem.questionText.slice(0, 80)}
-              </option>
-            ))}
-          </select>
-
           <button
             type="button"
-            onClick={() => void handleAssignProblem()}
-            disabled={isAssigning || !selectedStudentId || !selectedProblemId}
+            onClick={() => void handleAssignProblems()}
+            disabled={isAssigning || !selectedStudentId || pendingProblemIds.length === 0}
             className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {isAssigning ? "Assigning..." : "Assign"}
+            {isAssigning ? "Assigning..." : `Assign selected (${pendingProblemIds.length})`}
           </button>
         </div>
 
-        {selectedStudent ? (
-          <div className="mt-5 grid gap-3">
-            {assignedProblems.length === 0 ? (
-              <p className="text-sm text-slate-600">
-                No assigned problems yet for {getDisplayName(selectedStudent)}.
-              </p>
-            ) : (
-              assignedProblems.map((assignment) => (
-                <article
-                  key={assignment.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <p className="text-sm font-semibold text-slate-950">
-                    {assignment.upload?.originalFilename ?? "Instructor upload"}
+        <div className="mt-5 grid gap-4">
+          {!selectedStudent ? (
+            <p className="text-sm text-slate-600">Choose a student to manage file assignments.</p>
+          ) : groupedOwnedProblems.length === 0 ? (
+            <p className="text-sm text-slate-600">No approved problems are available yet.</p>
+          ) : (
+            groupedOwnedProblems.map((group) => (
+              <section
+                key={group.uploadId}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">{group.uploadName}</p>
+                  <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
+                    {group.items.filter((item) => assignedProblemIds.has(item.problem.id)).length} assigned
                   </p>
-                  <FormattedText
-                    text={assignment.problem.questionText}
-                    emptyText="Question text is missing."
-                    className="mt-2"
-                  />
-                </article>
-              ))
-            )}
-          </div>
-        ) : null}
+                </div>
+                <div className="mt-4 grid gap-3">
+                  {group.items.map((item) => {
+                    const isAssigned = assignedProblemIds.has(item.problem.id);
+                    const isPending = pendingProblemIds.includes(item.problem.id);
+
+                    return (
+                      <label
+                        key={item.problem.id}
+                        className={`grid gap-3 rounded-2xl border p-4 transition ${
+                          isAssigned
+                            ? "border-emerald-200 bg-emerald-50"
+                            : isPending
+                              ? "border-amber-300 bg-amber-50"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isAssigned || isPending}
+                            disabled={isAssigned || isAssigning}
+                            onChange={() => togglePendingProblem(item.problem.id)}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
+                                {isAssigned ? "Assigned" : isPending ? "Selected" : "Not assigned"}
+                              </p>
+                            </div>
+                            <FormattedText
+                              text={item.problem.questionText}
+                              emptyText="Question text is missing."
+                              className="mt-2"
+                            />
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
