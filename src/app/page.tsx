@@ -27,6 +27,12 @@ export default function Home() {
           >
             Log in
           </Link>
+          <Link
+            href={ROUTES.register}
+            className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+          >
+            Register
+          </Link>
         </div>
       </section>
     </main>

@@ -6,6 +6,7 @@ export const SOLUTION_PHOTOS_BUCKET = "solution-photos";
 export const ROUTES = {
   home: "/",
   login: "/login",
+  register: "/register",
   instructor: "/instructor",
   student: "/student",
   studentSessions: "/student/sessions",
