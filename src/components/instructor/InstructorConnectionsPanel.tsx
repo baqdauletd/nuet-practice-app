@@ -40,6 +40,7 @@ export function InstructorConnectionsPanel({
     Array<{ problem: AssignedProblem["problem"]; upload: AssignedProblem["upload"] }>
   >([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [selectedSessionStudentId, setSelectedSessionStudentId] = useState("");
   const [pendingProblemIds, setPendingProblemIds] = useState<string[]>([]);
   const [assignedProblems, setAssignedProblems] = useState<AssignedProblem[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<StudentSessionSummary[]>([]);
@@ -74,6 +75,7 @@ export function InstructorConnectionsPanel({
         setStudents(nextStudents);
         setOwnedProblems(nextOwnedProblems);
         setSelectedStudentId((current) => current || nextStudents[0]?.id || "");
+        setSelectedSessionStudentId((current) => current || nextStudents[0]?.id || "");
       } catch (error) {
         if (!isActive) {
           return;
@@ -101,9 +103,53 @@ export function InstructorConnectionsPanel({
   useEffect(() => {
     let isActive = true;
 
-    async function loadStudentData() {
+    async function loadAssignedProblems() {
       if (!selectedStudentId) {
         setAssignedProblems([]);
+        return;
+      }
+
+      try {
+        setIsLoadingSessionData(true);
+        const nextAssignedProblems = await listAssignedProblemsForInstructorStudent(
+          profile.id,
+          selectedStudentId,
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        setAssignedProblems(nextAssignedProblems);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load assigned problems.",
+        );
+      } finally {
+        if (isActive) {
+          setIsLoadingSessionData(false);
+        }
+      }
+    }
+
+    void loadAssignedProblems();
+
+    return () => {
+      isActive = false;
+    };
+  }, [profile.id, selectedStudentId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadStudentData() {
+      if (!selectedSessionStudentId) {
         setSessionSummaries([]);
         setSelectedSessionId("");
         setSessionProblems([]);
@@ -112,16 +158,14 @@ export function InstructorConnectionsPanel({
 
       try {
         setIsLoadingSessionData(true);
-        const [nextAssignedProblems, nextSessionSummaries] = await Promise.all([
-          listAssignedProblemsForInstructorStudent(profile.id, selectedStudentId),
-          listStudentSessionSummaries(selectedStudentId),
-        ]);
+        const nextSessionSummaries = await listStudentSessionSummaries(
+          selectedSessionStudentId,
+        );
 
         if (!isActive) {
           return;
         }
 
-        setAssignedProblems(nextAssignedProblems);
         setSessionSummaries(nextSessionSummaries);
         setSelectedSessionId(nextSessionSummaries[0]?.session.id || "");
       } catch (error) {
@@ -146,13 +190,13 @@ export function InstructorConnectionsPanel({
     return () => {
       isActive = false;
     };
-  }, [profile.id, selectedStudentId]);
+  }, [selectedSessionStudentId]);
 
   useEffect(() => {
     let isActive = true;
 
     async function loadSessionProblems() {
-      if (!selectedStudentId || !selectedSessionId) {
+      if (!selectedSessionStudentId || !selectedSessionId) {
         setSessionProblems([]);
         return;
       }
@@ -161,7 +205,7 @@ export function InstructorConnectionsPanel({
         setIsLoadingSessionData(true);
         const nextProblems = await getSessionProblemsForReview(
           selectedSessionId,
-          selectedStudentId,
+          selectedSessionStudentId,
         );
 
         if (isActive) {
@@ -189,11 +233,16 @@ export function InstructorConnectionsPanel({
     return () => {
       isActive = false;
     };
-  }, [selectedSessionId, selectedStudentId]);
+  }, [selectedSessionId, selectedSessionStudentId]);
 
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) ?? null,
     [selectedStudentId, students],
+  );
+  const selectedSessionStudent = useMemo(
+    () =>
+      students.find((student) => student.id === selectedSessionStudentId) ?? null,
+    [selectedSessionStudentId, students],
   );
   const assignedProblemIds = useMemo(
     () => new Set(assignedProblems.map((assignment) => assignment.problem.id)),
@@ -296,6 +345,10 @@ export function InstructorConnectionsPanel({
   function handleStudentSelection(studentId: string) {
     setSelectedStudentId(studentId);
     setPendingProblemIds([]);
+  }
+
+  function handleSessionStudentSelection(studentId: string) {
+    setSelectedSessionStudentId(studentId);
   }
 
   return (
@@ -496,14 +549,35 @@ export function InstructorConnectionsPanel({
         <h2 className="text-2xl font-semibold text-slate-950">
           Student sessions and solutions
         </h2>
-        {!selectedStudent ? (
+        {students.length === 0 ? (
           <p className="mt-4 text-sm leading-7 text-slate-700">
             Connect to a student to review their sessions.
           </p>
         ) : (
           <>
+            <div className="mt-5 max-w-sm">
+              <label className="grid gap-2 text-sm text-slate-700">
+                <span>Student to review</span>
+                <select
+                  value={selectedSessionStudentId}
+                  onChange={(event) =>
+                    handleSessionStudentSelection(event.target.value)
+                  }
+                  className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                >
+                  <option value="">Choose student</option>
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {getDisplayName(student)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <p className="mt-2 text-sm leading-7 text-slate-700">
-              Reviewing {getDisplayName(selectedStudent)}.
+              {selectedSessionStudent
+                ? `Reviewing ${getDisplayName(selectedSessionStudent)}.`
+                : "Choose which connected student's sessions you want to review."}
             </p>
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -586,7 +660,7 @@ export function InstructorConnectionsPanel({
                             <Image
                               src={getStudentSubmissionPhotoRoute(
                                 item.id,
-                                selectedStudent.id,
+                                selectedSessionStudent?.id ?? "",
                                 item.submission.submittedAt,
                               )}
                               alt="Student solution photo"
