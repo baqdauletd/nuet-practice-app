@@ -40,10 +40,15 @@ export function getStudentSubmissionPhotoRoute(
   sessionProblemId: string,
   studentId: string,
   version?: string | null,
+  index?: number,
 ) {
   const query = new URLSearchParams({
     studentId,
   });
+
+  if (typeof index === "number" && index >= 0) {
+    query.set("index", String(index));
+  }
 
   if (version) {
     query.set("v", version);

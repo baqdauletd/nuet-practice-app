@@ -52,7 +52,16 @@ export async function POST(request: Request) {
     const sessionProblemId = formData.get("sessionProblemId");
     const studentId = formData.get("studentId");
     const selectedAnswer = formData.get("selectedAnswer");
-    const file = formData.get("file");
+    const files = formData
+      .getAll("files")
+      .filter((item): item is File => item instanceof File && item.size > 0);
+    const legacyFile = formData.get("file");
+    const uploadedFiles =
+      files.length > 0
+        ? files
+        : legacyFile instanceof File && legacyFile.size > 0
+          ? [legacyFile]
+          : [];
 
     const parsed = requestSchema.safeParse({
       sessionProblemId,
@@ -103,47 +112,55 @@ export async function POST(request: Request) {
       );
     }
 
-    let solutionPhotoUrl: string | null | undefined;
+    let solutionPhotoUrls: string[] | undefined;
 
-    if (file instanceof File && file.size > 0) {
-      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-        return Response.json(
-          { error: "Unsupported photo type. Upload PNG, JPEG, or WEBP." },
-          { status: 400 },
-        );
+    if (uploadedFiles.length > 0) {
+      for (const file of uploadedFiles) {
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+          return Response.json(
+            { error: "Unsupported photo type. Upload PNG, JPEG, or WEBP." },
+            { status: 400 },
+          );
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          return Response.json(
+            { error: "Photo is too large. The limit is 20 MB." },
+            { status: 400 },
+          );
+        }
       }
 
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        return Response.json(
-          { error: "Photo is too large. The limit is 20 MB." },
-          { status: 400 },
-        );
-      }
-
-      const safeFilename = sanitizeFilename(file.name) || "solution-photo";
-      const timestamp = Date.now();
-      const objectPath = `${safeStudentId}/${safeSessionProblemId}/${timestamp}-${safeFilename}`;
       const insforge = getInsforgeServerClient();
+      const uploadedPhotoKeys: string[] = [];
 
-      const { data: storageObject, error: storageError } = await insforge.storage
-        .from(SOLUTION_PHOTOS_BUCKET)
-        .upload(objectPath, file);
+      for (const file of uploadedFiles) {
+        const safeFilename = sanitizeFilename(file.name) || "solution-photo";
+        const timestamp = Date.now();
+        const objectPath = `${safeStudentId}/${safeSessionProblemId}/${timestamp}-${safeFilename}`;
 
-      if (storageError) {
-        return Response.json(
-          { error: "Upload failed.", details: storageError.message },
-          { status: 500 },
-        );
+        const { data: storageObject, error: storageError } = await insforge.storage
+          .from(SOLUTION_PHOTOS_BUCKET)
+          .upload(objectPath, file);
+
+        if (storageError) {
+          return Response.json(
+            { error: "Upload failed.", details: storageError.message },
+            { status: 500 },
+          );
+        }
+
+        if (!storageObject) {
+          return Response.json(
+            { error: "Upload failed.", details: "Storage upload returned no object." },
+            { status: 500 },
+          );
+        }
+
+        uploadedPhotoKeys.push(storageObject.key);
       }
 
-      if (!storageObject) {
-        return Response.json(
-          { error: "Upload failed.", details: "Storage upload returned no object." },
-          { status: 500 },
-        );
-      }
-
-      solutionPhotoUrl = storageObject.key;
+      solutionPhotoUrls = uploadedPhotoKeys;
     }
 
     // TODO: Replace client-provided studentId with a server-authenticated user id once InsForge server session API is available.
@@ -151,7 +168,7 @@ export async function POST(request: Request) {
       sessionProblemId: safeSessionProblemId,
       studentId: safeStudentId,
       selectedAnswer: normalizedAnswer,
-      solutionPhotoUrl,
+      solutionPhotoUrls,
     });
 
     const allSubmitted = await markSessionCompletedIfAllSubmitted(

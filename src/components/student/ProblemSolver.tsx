@@ -47,6 +47,18 @@ function validatePhoto(file: File | null) {
   return null;
 }
 
+function validatePhotos(files: File[]) {
+  for (const file of files) {
+    const error = validatePhoto(file);
+
+    if (error) {
+      return error;
+    }
+  }
+
+  return null;
+}
+
 export function ProblemSolver({
   profile,
   sessionId,
@@ -60,7 +72,7 @@ export function ProblemSolver({
   const [sessionProblems, setSessionProblems] = useState<SessionProblemWithProblem[]>([]);
   const [currentProblem, setCurrentProblem] = useState<SessionProblemWithProblem | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState("");
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [progress, setProgress] = useState<SessionProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -91,7 +103,7 @@ export function ProblemSolver({
         setProgress(nextProgress);
         setCurrentProblem(problem);
         setSelectedAnswer(problem?.submission?.selectedAnswer ?? "");
-        setSelectedPhoto(null);
+        setSelectedPhotos([]);
       } catch (error) {
         if (!isActive) {
           return;
@@ -131,7 +143,7 @@ export function ProblemSolver({
       return;
     }
 
-    const photoError = validatePhoto(selectedPhoto);
+    const photoError = validatePhotos(selectedPhotos);
     if (photoError) {
       setErrorMessage(photoError);
       return;
@@ -147,8 +159,8 @@ export function ProblemSolver({
       formData.append("studentId", profile.id);
       formData.append("selectedAnswer", normalizedAnswer);
 
-      if (selectedPhoto) {
-        formData.append("file", selectedPhoto);
+      for (const photo of selectedPhotos) {
+        formData.append("files", photo);
       }
 
       const payload = await upsertSubmission(formData);
@@ -308,41 +320,52 @@ export function ProblemSolver({
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
           <label className="block text-sm font-medium text-slate-700">
-            Notebook solution photo
+            Notebook solution photos
           </label>
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
+            multiple
             disabled={isCompleted}
             onChange={(event) =>
-              setSelectedPhoto(event.target.files?.[0] ?? null)
+              setSelectedPhotos(Array.from(event.target.files ?? []))
             }
             className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
           />
           <p className="mt-3 text-sm text-slate-500">
-            Selected photo: {selectedPhoto?.name ?? "No new photo selected. On a phone, this opens your camera or gallery picker."}
+            {selectedPhotos.length > 0
+              ? `Selected photos: ${selectedPhotos.map((photo) => photo.name).join(", ")}`
+              : "No new photos selected. On a phone, this opens your camera or gallery picker."}
           </p>
-          {currentProblem.submission?.solutionPhotoUrl ? (
+          {currentProblem.submission?.solutionPhotoUrls.length ? (
             <div className="mt-4">
               <p className="text-sm font-medium text-slate-700">
-                Existing uploaded photo
+                Existing uploaded photos
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Choose another file above and save again to replace it.
+                Choose one or more files above and save again to replace them.
               </p>
-              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <Image
-                  src={getStudentSubmissionPhotoRoute(
-                    currentProblem.id,
-                    profile.id,
-                    currentProblem.submission.submittedAt,
-                  )}
-                  alt="Uploaded notebook solution"
-                  width={1200}
-                  height={1600}
-                  unoptimized
-                  className="h-auto w-full object-contain"
-                />
+              <div className="mt-3 grid gap-3">
+                {currentProblem.submission.solutionPhotoUrls.map((_, photoIndex) => (
+                  <div
+                    key={`${currentProblem.submission?.id ?? currentProblem.id}-photo-${photoIndex}`}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                  >
+                    <Image
+                      src={getStudentSubmissionPhotoRoute(
+                        currentProblem.id,
+                        profile.id,
+                        currentProblem.submission?.submittedAt,
+                        photoIndex,
+                      )}
+                      alt={`Uploaded notebook solution ${photoIndex + 1}`}
+                      width={1200}
+                      height={1600}
+                      unoptimized
+                      className="h-auto w-full object-contain"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}

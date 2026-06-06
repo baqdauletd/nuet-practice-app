@@ -5,6 +5,11 @@ import {
 } from "../../../../lib/auth/server";
 import { TEST_UPLOADS_BUCKET } from "../../../../lib/constants";
 import { getInsforgeServerClient } from "../../../../lib/insforge/server";
+import {
+  buildDefaultUploadLabel,
+  serializeStoredUploadFiles,
+  type StoredUploadFile,
+} from "../../../../lib/upload-files";
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -37,10 +42,19 @@ function logRouteError(message: string, error: unknown, context?: object) {
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file");
     const instructorId = formData.get("instructorId");
+    const files = formData
+      .getAll("files")
+      .filter((item): item is File => item instanceof File && item.size > 0);
+    const legacyFile = formData.get("file");
+    const uploadedFiles =
+      files.length > 0
+        ? files
+        : legacyFile instanceof File && legacyFile.size > 0
+          ? [legacyFile]
+          : [];
 
-    if (!(file instanceof File)) {
+    if (uploadedFiles.length === 0) {
       return Response.json(
         { ok: false, message: "File is required." },
         { status: 400 },
@@ -75,53 +89,63 @@ export async function POST(request: Request) {
       "instructor",
     );
 
-    if (!ALLOWED_FILE_TYPES.has(file.type)) {
-      return Response.json(
-        {
-          ok: false,
-          message: "Unsupported file type. Upload a PDF, PNG, JPEG, or WEBP file.",
-        },
-        { status: 400 },
-      );
-    }
+    for (const file of uploadedFiles) {
+      if (!ALLOWED_FILE_TYPES.has(file.type)) {
+        return Response.json(
+          {
+            ok: false,
+            message: "Unsupported file type. Upload a PDF, PNG, JPEG, or WEBP file.",
+          },
+          { status: 400 },
+        );
+      }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return Response.json(
-        { ok: false, message: "File is too large. The limit is 20 MB." },
-        { status: 400 },
-      );
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return Response.json(
+          { ok: false, message: "File is too large. The limit is 20 MB." },
+          { status: 400 },
+        );
+      }
     }
-
-    const safeFilename = sanitizeFilename(file.name) || "upload";
-    const timestamp = Date.now();
-    const objectPath = `instructor-tests/${instructorProfile.id}/${timestamp}-${safeFilename}`;
 
     const insforge = getInsforgeServerClient();
+    const storedFiles: StoredUploadFile[] = [];
 
-    const { data: storageObject, error: storageError } = await insforge.storage
-      .from(TEST_UPLOADS_BUCKET)
-      .upload(objectPath, file);
+    for (const [index, file] of uploadedFiles.entries()) {
+      const safeFilename = sanitizeFilename(file.name) || "upload";
+      const timestamp = Date.now();
+      const objectPath = `instructor-tests/${instructorProfile.id}/${timestamp}-${index}-${safeFilename}`;
 
-    if (storageError) {
-      return Response.json(
-        {
-          ok: false,
-          message: "Upload failed.",
-          details: storageError.message,
-        },
-        { status: 500 },
-      );
-    }
+      const { data: storageObject, error: storageError } = await insforge.storage
+        .from(TEST_UPLOADS_BUCKET)
+        .upload(objectPath, file);
 
-    if (!storageObject) {
-      return Response.json(
-        {
-          ok: false,
-          message: "Upload failed.",
-          details: "Storage upload returned no object.",
-        },
-        { status: 500 },
-      );
+      if (storageError) {
+        return Response.json(
+          {
+            ok: false,
+            message: "Upload failed.",
+            details: storageError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      if (!storageObject) {
+        return Response.json(
+          {
+            ok: false,
+            message: "Upload failed.",
+            details: "Storage upload returned no object.",
+          },
+          { status: 500 },
+        );
+      }
+
+      storedFiles.push({
+        storageKey: storageObject.key,
+        originalFilename: file.name,
+      });
     }
 
     const { data: uploadRow, error: uploadError } = await insforge.database
@@ -129,9 +153,11 @@ export async function POST(request: Request) {
       .insert({
         instructor_id: instructorProfile.id,
         // TODO: Replace client-provided instructorId with a server-authenticated user id once InsForge server session API is available.
-        // TODO: Rename file_url to file_path when schema evolves; we store the durable storage key here.
-        file_url: storageObject.key,
-        original_filename: file.name,
+        // TODO: Rename file_url to file_path when schema evolves; we store one or more durable storage keys here.
+        file_url: serializeStoredUploadFiles(storedFiles),
+        original_filename: buildDefaultUploadLabel(
+          storedFiles.map((file) => file.originalFilename),
+        ),
         status: "uploaded",
       })
       .select("id, instructor_id, file_url, original_filename, status, created_at")

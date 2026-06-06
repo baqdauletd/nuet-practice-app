@@ -194,22 +194,30 @@ function GradingCard({
         </FeedbackSection>
       </div>
 
-      {item.submission?.solutionPhotoUrl ? (
+      {item.submission?.solutionPhotoUrls.length ? (
         <div className="mt-5">
-          <FeedbackSection title="Your Uploaded Photo">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <Image
-                  src={getStudentSubmissionPhotoRoute(
-                    item.id,
-                    profile.id,
-                    item.submission?.submittedAt,
-                  )}
-                  alt="Uploaded notebook solution"
-                  width={1200}
-                  height={1600}
-                  unoptimized
-                className="h-auto w-full object-contain"
-              />
+          <FeedbackSection title="Your Uploaded Photos">
+            <div className="grid gap-3">
+              {item.submission.solutionPhotoUrls.map((_, photoIndex) => (
+                <div
+                  key={`${item.submission?.id ?? item.id}-photo-${photoIndex}`}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                >
+                  <Image
+                    src={getStudentSubmissionPhotoRoute(
+                      item.id,
+                      profile.id,
+                      item.submission?.submittedAt,
+                      photoIndex,
+                    )}
+                    alt={`Uploaded notebook solution ${photoIndex + 1}`}
+                    width={1200}
+                    height={1600}
+                    unoptimized
+                    className="h-auto w-full object-contain"
+                  />
+                </div>
+              ))}
             </div>
           </FeedbackSection>
         </div>

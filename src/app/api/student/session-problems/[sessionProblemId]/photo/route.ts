@@ -12,6 +12,7 @@ import {
 const requestSchema = z.object({
   sessionProblemId: z.string().uuid(),
   studentId: z.string().uuid(),
+  index: z.coerce.number().int().min(0).default(0),
 });
 
 export async function GET(
@@ -22,10 +23,12 @@ export async function GET(
     const { sessionProblemId } = await context.params;
     const url = new URL(request.url);
     const studentId = url.searchParams.get("studentId");
+    const index = url.searchParams.get("index") ?? "0";
 
     const parsed = requestSchema.safeParse({
       sessionProblemId,
       studentId,
+      index,
     });
 
     if (!parsed.success) {
@@ -46,6 +49,7 @@ export async function GET(
     const {
       sessionProblemId: safeSessionProblemId,
       studentId: safeStudentId,
+      index: safeIndex,
     } = parsed.data;
 
     await requireServerProfileRole(safeStudentId, "student");
@@ -65,14 +69,16 @@ export async function GET(
       safeSessionProblemId,
       safeStudentId,
     );
-    if (!submission?.solutionPhotoUrl) {
+    const solutionPhotoUrl = submission?.solutionPhotoUrls[safeIndex] ?? null;
+
+    if (!solutionPhotoUrl) {
       return Response.json(
         { error: "Solution photo not found." },
         { status: 404 },
       );
     }
 
-    const photo = await downloadSolutionPhoto(submission.solutionPhotoUrl);
+    const photo = await downloadSolutionPhoto(solutionPhotoUrl);
 
     return new Response(photo.bytes, {
       headers: {

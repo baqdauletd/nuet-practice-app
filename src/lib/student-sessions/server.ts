@@ -5,6 +5,7 @@ import {
   SOLUTION_PHOTOS_BUCKET,
 } from "../constants";
 import { getInsforgeServerClient } from "../insforge/server";
+import { parseStoredStringList, serializeStoredStringList } from "../upload-files";
 import type {
   CreateDailySessionInput,
   DailySessionSourceOption,
@@ -183,12 +184,15 @@ function toProblem(row: ProblemRow): Problem {
 }
 
 function toSubmission(row: SubmissionRow): Submission {
+  const solutionPhotoUrls = parseStoredStringList(row.solution_photo_url);
+
   return {
     id: row.id,
     sessionProblemId: row.session_problem_id,
     studentId: row.student_id,
     selectedAnswer: row.selected_answer,
-    solutionPhotoUrl: row.solution_photo_url,
+    solutionPhotoUrl: solutionPhotoUrls[0] ?? null,
+    solutionPhotoUrls,
     aiFeedback: row.ai_feedback,
     isCorrect: row.is_correct,
     submittedAt: row.submitted_at,
@@ -830,12 +834,12 @@ export async function upsertSubmission({
   sessionProblemId,
   studentId,
   selectedAnswer,
-  solutionPhotoUrl,
+  solutionPhotoUrls,
 }: {
   sessionProblemId: string;
   studentId: string;
   selectedAnswer: string;
-  solutionPhotoUrl?: string | null;
+  solutionPhotoUrls?: string[] | null;
 }) {
   const existingSubmission = await getSubmissionForSessionProblem(
     sessionProblemId,
@@ -843,6 +847,10 @@ export async function upsertSubmission({
   );
   const insforge = getInsforgeServerClient();
   const submittedAt = new Date().toISOString();
+  const serializedSolutionPhotoUrls =
+    solutionPhotoUrls === undefined
+      ? undefined
+      : serializeStoredStringList(solutionPhotoUrls ?? []);
 
   if (existingSubmission) {
     const { data, error } = await insforge.database
@@ -850,7 +858,9 @@ export async function upsertSubmission({
       .update({
         selected_answer: selectedAnswer,
         solution_photo_url:
-          solutionPhotoUrl ?? existingSubmission.solutionPhotoUrl ?? null,
+          serializedSolutionPhotoUrls ??
+          serializeStoredStringList(existingSubmission.solutionPhotoUrls) ??
+          null,
         submitted_at: submittedAt,
       })
       .eq("id", existingSubmission.id)
@@ -877,7 +887,7 @@ export async function upsertSubmission({
         session_problem_id: sessionProblemId,
         student_id: studentId,
         selected_answer: selectedAnswer,
-        solution_photo_url: solutionPhotoUrl ?? null,
+        solution_photo_url: serializedSolutionPhotoUrls ?? null,
         submitted_at: submittedAt,
       },
     ])

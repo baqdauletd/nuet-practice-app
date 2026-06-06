@@ -655,20 +655,28 @@ export function InstructorConnectionsPanel({
                             </p>
                           </div>
                         </div>
-                        {item.submission?.solutionPhotoUrl ? (
-                          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                            <Image
-                              src={getStudentSubmissionPhotoRoute(
-                                item.id,
-                                selectedSessionStudent?.id ?? "",
-                                item.submission.submittedAt,
-                              )}
-                              alt="Student solution photo"
-                              width={1200}
-                              height={1600}
-                              unoptimized
-                              className="h-auto w-full object-contain"
-                            />
+                        {item.submission?.solutionPhotoUrls.length ? (
+                          <div className="mt-4 grid gap-3">
+                            {item.submission.solutionPhotoUrls.map((_, photoIndex) => (
+                              <div
+                                key={`${item.submission?.id ?? item.id}-photo-${photoIndex}`}
+                                className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                              >
+                                <Image
+                                  src={getStudentSubmissionPhotoRoute(
+                                    item.id,
+                                    selectedSessionStudent?.id ?? "",
+                                    item.submission?.submittedAt,
+                                    photoIndex,
+                                  )}
+                                  alt={`Student solution photo ${photoIndex + 1}`}
+                                  width={1200}
+                                  height={1600}
+                                  unoptimized
+                                  className="h-auto w-full object-contain"
+                                />
+                              </div>
+                            ))}
                           </div>
                         ) : null}
                       </article>

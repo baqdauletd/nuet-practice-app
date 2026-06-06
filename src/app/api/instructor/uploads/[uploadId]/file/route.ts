@@ -12,6 +12,7 @@ import { resolveUploadMimeType } from "../../../../../../lib/problem-source-imag
 const requestSchema = z.object({
   uploadId: z.string().uuid(),
   instructorId: z.string().uuid(),
+  index: z.coerce.number().int().min(0).default(0),
 });
 
 function sanitizeFilename(filename: string) {
@@ -26,10 +27,12 @@ export async function GET(
     const { uploadId } = await context.params;
     const url = new URL(request.url);
     const instructorId = url.searchParams.get("instructorId");
+    const index = url.searchParams.get("index") ?? "0";
 
     const parsed = requestSchema.safeParse({
       uploadId,
       instructorId,
+      index,
     });
 
     if (!parsed.success) {
@@ -47,7 +50,11 @@ export async function GET(
       );
     }
 
-    const { uploadId: safeUploadId, instructorId: safeInstructorId } = parsed.data;
+    const {
+      uploadId: safeUploadId,
+      instructorId: safeInstructorId,
+      index: safeIndex,
+    } = parsed.data;
 
     await requireServerProfileRole(safeInstructorId, "instructor");
 
@@ -59,13 +66,21 @@ export async function GET(
       );
     }
 
-    const fileBytes = await downloadTestUploadFile(upload.fileUrl);
+    const sourceFile = upload.sourceFiles[safeIndex];
+    if (!sourceFile) {
+      return Response.json(
+        { error: "Uploaded file not found." },
+        { status: 404 },
+      );
+    }
+
+    const fileBytes = await downloadTestUploadFile(sourceFile.storageKey);
     const mimeType = resolveUploadMimeType({
-      displayName: upload.originalFilename,
-      storageKey: upload.fileUrl,
+      displayName: sourceFile.originalFilename,
+      storageKey: sourceFile.storageKey,
       bytes: fileBytes,
     });
-    const filename = sanitizeFilename(upload.originalFilename);
+    const filename = sanitizeFilename(sourceFile.originalFilename);
 
     return new Response(fileBytes, {
       headers: {

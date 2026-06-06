@@ -1,3 +1,5 @@
+import type { StoredUploadFile } from "./upload-files";
+
 export type UserRole = "instructor" | "student";
 
 export type Difficulty = "easy" | "medium" | "hard";
@@ -58,7 +60,9 @@ export type TestUpload = {
   id: string;
   instructorId: string | null;
   fileUrl: string;
+  fileUrls: string[];
   originalFilename: string;
+  sourceFiles: StoredUploadFile[];
   status: UploadStatus;
   createdAt: string | null;
 };
@@ -78,6 +82,7 @@ export type Submission = {
   studentId: string | null;
   selectedAnswer: string | null;
   solutionPhotoUrl: string | null;
+  solutionPhotoUrls: string[];
   aiFeedback: GradingFeedback | null;
   isCorrect: boolean | null;
   submittedAt: string | null;

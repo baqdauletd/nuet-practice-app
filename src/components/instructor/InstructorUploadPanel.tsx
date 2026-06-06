@@ -36,17 +36,19 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function validateFile(file: File | null) {
-  if (!file) {
-    return "Select a file before uploading.";
+function validateFiles(files: File[]) {
+  if (files.length === 0) {
+    return "Select at least one file before uploading.";
   }
 
-  if (!ALLOWED_FILE_TYPES.has(file.type)) {
-    return "Unsupported file type. Upload a PDF, PNG, JPEG, or WEBP file.";
-  }
+  for (const file of files) {
+    if (!ALLOWED_FILE_TYPES.has(file.type)) {
+      return "Unsupported file type. Upload a PDF, PNG, JPEG, or WEBP file.";
+    }
 
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    return "File is too large. The limit is 20 MB.";
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return "File is too large. The limit is 20 MB.";
+    }
   }
 
   return null;
@@ -57,7 +59,7 @@ export function InstructorUploadPanel({
 }: {
   profile: AppUserProfile;
 }) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploads, setUploads] = useState<TestUpload[]>([]);
   const [isLoadingUploads, setIsLoadingUploads] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -68,8 +70,11 @@ export function InstructorUploadPanel({
   const [extractedCounts, setExtractedCounts] = useState<Record<string, number>>({});
 
   const selectedFilename = useMemo(
-    () => selectedFile?.name ?? "No file selected",
-    [selectedFile],
+    () =>
+      selectedFiles.length > 0
+        ? selectedFiles.map((file) => file.name).join(", ")
+        : "No files selected",
+    [selectedFiles],
   );
 
   useEffect(() => {
@@ -106,11 +111,11 @@ export function InstructorUploadPanel({
   }, [profile.id]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    setSelectedFile(file);
+    const files = Array.from(event.target.files ?? []);
+    setSelectedFiles(files);
     setSuccessMessage(null);
     setDebugDetails(null);
-    setErrorMessage(validateFile(file));
+    setErrorMessage(validateFiles(files));
   }
 
   async function refreshUploads() {
@@ -121,8 +126,7 @@ export function InstructorUploadPanel({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const file = selectedFile;
-    const validationError = validateFile(file);
+    const validationError = validateFiles(selectedFiles);
     if (validationError) {
       setErrorMessage(validationError);
       setSuccessMessage(null);
@@ -130,18 +134,16 @@ export function InstructorUploadPanel({
       return;
     }
 
-    if (!file) {
-      return;
-    }
-
     setIsUploading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setDebugDetails(null);
+      setDebugDetails(null);
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      for (const file of selectedFiles) {
+        formData.append("files", file);
+      }
       formData.append("instructorId", profile.id);
 
       const response = await fetch("/api/instructor/upload-test", {
@@ -167,8 +169,12 @@ export function InstructorUploadPanel({
       }
 
       await refreshUploads();
-      setSelectedFile(null);
-      setSuccessMessage("File uploaded successfully.");
+      setSelectedFiles([]);
+      setSuccessMessage(
+        selectedFiles.length === 1
+          ? "File uploaded successfully."
+          : "Files uploaded successfully as one problem set.",
+      );
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to upload the file.";
@@ -256,17 +262,18 @@ export function InstructorUploadPanel({
               htmlFor="test-upload"
               className="block text-sm font-medium text-slate-700"
             >
-              Select test file
+              Select test files
             </label>
             <input
               id="test-upload"
               type="file"
               accept=".pdf,image/png,image/jpeg,image/webp"
+              multiple
               onChange={handleFileChange}
               className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
             />
             <p className="mt-3 text-sm text-slate-500">
-              Selected filename: {selectedFilename}
+              Selected files: {selectedFilename}
             </p>
           </div>
 
@@ -276,7 +283,7 @@ export function InstructorUploadPanel({
               disabled={isUploading}
               className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
             >
-              {isUploading ? "Uploading..." : "Upload test file"}
+              {isUploading ? "Uploading..." : "Upload problem set"}
             </button>
             <p className="text-sm text-slate-500">
               AI extraction and review are now instructor-only steps.
@@ -338,9 +345,17 @@ export function InstructorUploadPanel({
                     <h3 className="text-lg font-semibold text-slate-950">
                       {upload.originalFilename}
                     </h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Stored path / URL: {upload.fileUrl}
-                    </p>
+                    <div className="mt-2 grid gap-1 text-sm text-slate-600">
+                      <p>
+                        {upload.sourceFiles.length} source
+                        {upload.sourceFiles.length === 1 ? " file" : " files"}
+                      </p>
+                      {upload.sourceFiles.map((file, fileIndex) => (
+                        <p key={`${upload.id}-source-${fileIndex}`} className="break-all">
+                          {file.originalFilename}
+                        </p>
+                      ))}
+                    </div>
                     {typeof extractedCounts[upload.id] === "number" ? (
                       <p className="mt-1 text-sm text-emerald-700">
                         Extracted count: {extractedCounts[upload.id]}

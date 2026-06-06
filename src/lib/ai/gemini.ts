@@ -160,18 +160,22 @@ export async function gradeSubmissionWithGemini({
   correctAnswer,
   officialSolution,
   selectedAnswer,
-  solutionPhotoBytes,
-  solutionPhotoMimeType,
+  solutionPhotos,
 }: {
   problemText: string;
   choices: Record<string, string> | null;
   correctAnswer: string | null;
   officialSolution: string | null;
   selectedAnswer: string | null;
-  solutionPhotoBytes?: Uint8Array | null;
-  solutionPhotoMimeType?: string | null;
+  solutionPhotos?: Array<{
+    bytes: Uint8Array;
+    mimeType: string;
+  }>;
 }) {
   const ai = getGeminiClient();
+  const normalizedSolutionPhotos = (solutionPhotos ?? []).filter(
+    (photo) => photo.bytes.length > 0 && photo.mimeType.trim() !== "",
+  );
   const promptText = `${NUET_MATH_GRADING_PROMPT}
 
 Problem text:
@@ -189,7 +193,7 @@ ${officialSolution ?? "No official solution available."}
 Student selected answer:
 ${selectedAnswer ?? "No answer selected"}`;
 
-  function buildParts(includePhoto: boolean): Array<
+  function buildParts(includePhotos: boolean): Array<
     | { text: string }
     | {
         inlineData: {
@@ -208,25 +212,27 @@ ${selectedAnswer ?? "No answer selected"}`;
         }
     > = [{ text: promptText }];
 
-    if (includePhoto && solutionPhotoBytes && solutionPhotoMimeType) {
-      parts.push({
-        inlineData: {
-          mimeType: solutionPhotoMimeType,
-          data: toBase64(solutionPhotoBytes),
-        },
-      });
+    if (includePhotos) {
+      for (const photo of normalizedSolutionPhotos) {
+        parts.push({
+          inlineData: {
+            mimeType: photo.mimeType,
+            data: toBase64(photo.bytes),
+          },
+        });
+      }
     }
 
     return parts;
   }
 
-  async function generate(includePhoto: boolean) {
+  async function generate(includePhotos: boolean) {
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: [
         {
           role: "user",
-          parts: buildParts(includePhoto),
+          parts: buildParts(includePhotos),
         },
       ],
       config: {
@@ -245,10 +251,10 @@ ${selectedAnswer ?? "No answer selected"}`;
   }
 
   try {
-    return await generate(Boolean(solutionPhotoBytes && solutionPhotoMimeType));
+    return await generate(normalizedSolutionPhotos.length > 0);
   } catch (error) {
     const shouldRetryWithoutPhoto =
-      Boolean(solutionPhotoBytes && solutionPhotoMimeType) &&
+      normalizedSolutionPhotos.length > 0 &&
       error instanceof Error &&
       (error.message.includes("did not contain a JSON object") ||
         error.message.includes("invalid grading JSON") ||

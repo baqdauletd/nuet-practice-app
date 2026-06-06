@@ -3,6 +3,7 @@ import "server-only";
 import { TEST_UPLOADS_BUCKET } from "../constants";
 import { getInsforgeServerClient } from "../insforge/server";
 import type { TestUpload, UploadStatus } from "../types";
+import { parseStoredUploadFiles } from "../upload-files";
 
 type TestUploadRow = {
   id: string;
@@ -14,11 +15,15 @@ type TestUploadRow = {
 };
 
 function toTestUpload(row: TestUploadRow): TestUpload {
+  const sourceFiles = parseStoredUploadFiles(row.file_url, row.original_filename);
+
   return {
     id: row.id,
     instructorId: row.instructor_id,
-    fileUrl: row.file_url,
+    fileUrl: sourceFiles[0]?.storageKey ?? row.file_url,
+    fileUrls: sourceFiles.map((file) => file.storageKey),
     originalFilename: row.original_filename,
+    sourceFiles,
     status: row.status,
     createdAt: row.created_at,
   };

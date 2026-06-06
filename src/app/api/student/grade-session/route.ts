@@ -147,27 +147,26 @@ export async function POST(request: Request) {
       let feedback: GradingFeedback;
 
       try {
-        let solutionPhotoBytes: Uint8Array | null = null;
-        let solutionPhotoMimeType: string | null = null;
+        const solutionPhotos: Array<{
+          bytes: Uint8Array;
+          mimeType: string;
+        }> = [];
         let photoDownloadDebugStep:
           | "photo_download_failed_continued_without_photo"
           | undefined;
         let photoDownloadDebugError: string | undefined;
 
-        if (sessionProblem.submission.solutionPhotoUrl) {
+        for (const solutionPhotoUrl of sessionProblem.submission.solutionPhotoUrls) {
           try {
-            const photo = await downloadSolutionPhoto(
-              sessionProblem.submission.solutionPhotoUrl,
-            );
-            solutionPhotoBytes = photo.bytes;
-            solutionPhotoMimeType = photo.mimeType;
+            const photo = await downloadSolutionPhoto(solutionPhotoUrl);
+            solutionPhotos.push(photo);
           } catch (error) {
             const message = getErrorMessage(error);
             console.error("Student grading photo download failed.", {
               sessionId,
               sessionProblemId: sessionProblem.id,
               submissionId: sessionProblem.submission.id,
-              solutionPhotoUrl: sessionProblem.submission.solutionPhotoUrl,
+              solutionPhotoUrl,
               error: message,
             });
             photoDownloadDebugStep =
@@ -182,12 +181,11 @@ export async function POST(request: Request) {
           correctAnswer: sessionProblem.problem.correctAnswer,
           officialSolution: sessionProblem.problem.aiSolution,
           selectedAnswer: sessionProblem.submission.selectedAnswer,
-          solutionPhotoBytes,
-          solutionPhotoMimeType,
+          solutionPhotos,
         });
 
         const photoContradictsAnswer =
-          Boolean(sessionProblem.submission.solutionPhotoUrl) &&
+          sessionProblem.submission.solutionPhotoUrls.length > 0 &&
           aiFeedback.photo_solution_correct === false;
 
         feedback = {
@@ -213,7 +211,7 @@ export async function POST(request: Request) {
           error: message,
           selectedAnswer: sessionProblem.submission.selectedAnswer,
           correctAnswer: sessionProblem.problem.correctAnswer,
-          hasSolutionPhoto: Boolean(sessionProblem.submission.solutionPhotoUrl),
+          solutionPhotoCount: sessionProblem.submission.solutionPhotoUrls.length,
         });
         feedback = createDebugFallbackFeedback(matchedStoredAnswer, {
           debugError: message,

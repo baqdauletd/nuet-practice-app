@@ -79,45 +79,46 @@ export async function POST(request: Request) {
     // TODO: Replace client-provided instructorId with a server-authenticated user id once InsForge server session API is available.
     await updateTestUploadStatus(uploadId, "extracting");
 
-    const fileBytes = await downloadTestUploadFile(upload.fileUrl);
-    const mimeType = resolveUploadMimeType({
-      displayName: upload.originalFilename,
-      storageKey: upload.fileUrl,
-      bytes: fileBytes,
-    });
+    for (const sourceFile of upload.sourceFiles) {
+      const fileBytes = await downloadTestUploadFile(sourceFile.storageKey);
+      const mimeType = resolveUploadMimeType({
+        displayName: sourceFile.originalFilename,
+        storageKey: sourceFile.storageKey,
+        bytes: fileBytes,
+      });
 
-    const extractedProblems = await extractMathProblemsWithGemini({
-      bytes: fileBytes,
-      mimeType,
-      filename: upload.originalFilename,
-    });
+      const extractedProblems = await extractMathProblemsWithGemini({
+        bytes: fileBytes,
+        mimeType,
+        filename: sourceFile.originalFilename,
+      });
 
-    const insertedProblems = await insertExtractedProblems(uploadId, extractedProblems);
+      const insertedProblems = await insertExtractedProblems(uploadId, extractedProblems);
+      const snapshotKeysByPage = new Map<number, string | null>();
 
-    const snapshotKeysByPage = new Map<number, string | null>();
+      for (const [index, problem] of extractedProblems.entries()) {
+        const insertedProblem = insertedProblems[index];
+        if (!insertedProblem || !problem.needs_visual_reference) {
+          continue;
+        }
 
-    for (const [index, problem] of extractedProblems.entries()) {
-      const insertedProblem = insertedProblems[index];
-      if (!insertedProblem || !problem.needs_visual_reference) {
-        continue;
-      }
+        const pageNumber = problem.source_page ?? 1;
+        let sourceImageUrl = snapshotKeysByPage.get(pageNumber);
 
-      const pageNumber = problem.source_page ?? 1;
-      let sourceImageUrl = snapshotKeysByPage.get(pageNumber);
+        if (sourceImageUrl === undefined) {
+          sourceImageUrl = await createProblemSourceImage({
+            uploadId,
+            uploadBytes: fileBytes,
+            uploadFilename: sourceFile.originalFilename,
+            uploadStorageKey: sourceFile.storageKey,
+            sourcePage: pageNumber,
+          });
+          snapshotKeysByPage.set(pageNumber, sourceImageUrl);
+        }
 
-      if (sourceImageUrl === undefined) {
-        sourceImageUrl = await createProblemSourceImage({
-          uploadId,
-          uploadBytes: fileBytes,
-          uploadFilename: upload.originalFilename,
-          uploadStorageKey: upload.fileUrl,
-          sourcePage: pageNumber,
-        });
-        snapshotKeysByPage.set(pageNumber, sourceImageUrl);
-      }
-
-      if (sourceImageUrl) {
-        await updateProblemSourceImage(insertedProblem.id, sourceImageUrl);
+        if (sourceImageUrl) {
+          await updateProblemSourceImage(insertedProblem.id, sourceImageUrl);
+        }
       }
     }
 

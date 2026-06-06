@@ -14,6 +14,7 @@ import type {
   StudentSessionSummary,
   Submission,
 } from "../types";
+import { parseStoredStringList } from "../upload-files";
 
 type DailySessionRow = {
   id: string;
@@ -106,12 +107,15 @@ function toProblem(row: SafeProblemRow): Problem {
 }
 
 function toSubmission(row: SubmissionRow): Submission {
+  const solutionPhotoUrls = parseStoredStringList(row.solution_photo_url);
+
   return {
     id: row.id,
     sessionProblemId: row.session_problem_id,
     studentId: row.student_id,
     selectedAnswer: row.selected_answer,
-    solutionPhotoUrl: row.solution_photo_url,
+    solutionPhotoUrl: solutionPhotoUrls[0] ?? null,
+    solutionPhotoUrls,
     aiFeedback: row.ai_feedback,
     isCorrect: row.is_correct,
     submittedAt: row.submitted_at,
