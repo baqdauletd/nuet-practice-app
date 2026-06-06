@@ -141,14 +141,16 @@ async function uploadSnapshotBytes({
   bytes,
   uploadId,
   pageNumber,
+  sourceFileToken,
 }: {
   bytes: Uint8Array;
   uploadId: string;
   pageNumber: number;
+  sourceFileToken: string;
 }) {
   const insforge = getInsforgeServerClient();
   const timestamp = Date.now();
-  const objectPath = `problem-snapshots/${uploadId}/${timestamp}-page-${pageNumber}.png`;
+  const objectPath = `problem-snapshots/${uploadId}/${timestamp}-${sourceFileToken}-page-${pageNumber}.png`;
   const file = new File([Buffer.from(bytes)], `page-${pageNumber}.png`, {
     type: "image/png",
   });
@@ -192,11 +194,19 @@ export async function createProblemSourceImage({
       return null;
     }
 
+    const sourceFileToken = uploadStorageKey
+      .split("/")
+      .at(-1)
+      ?.toLowerCase()
+      .replace(/[^a-z0-9.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "source";
     const pngBytes = await renderPdfPageToPng(uploadBytes, sourcePage);
     return uploadSnapshotBytes({
       bytes: pngBytes,
       uploadId,
       pageNumber: sourcePage,
+      sourceFileToken,
     });
   }
 

@@ -134,10 +134,10 @@ export async function POST(request: Request) {
       const insforge = getInsforgeServerClient();
       const uploadedPhotoKeys: string[] = [];
 
-      for (const file of uploadedFiles) {
+      for (const [index, file] of uploadedFiles.entries()) {
         const safeFilename = sanitizeFilename(file.name) || "solution-photo";
         const timestamp = Date.now();
-        const objectPath = `${safeStudentId}/${safeSessionProblemId}/${timestamp}-${safeFilename}`;
+        const objectPath = `${safeStudentId}/${safeSessionProblemId}/${timestamp}-${index}-${safeFilename}`;
 
         const { data: storageObject, error: storageError } = await insforge.storage
           .from(SOLUTION_PHOTOS_BUCKET)

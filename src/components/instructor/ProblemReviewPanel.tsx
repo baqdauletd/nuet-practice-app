@@ -705,10 +705,18 @@ export function ProblemReviewPanel({
   const totalCount = problems.length;
   const pendingCount = totalCount - approvedCount;
 
-  function getUploadFileRoute(targetUploadId: string, version?: string | null) {
+  function getUploadFileRoute(
+    targetUploadId: string,
+    version?: string | null,
+    index?: number,
+  ) {
     const query = new URLSearchParams({
       instructorId: profile.id,
     });
+
+    if (typeof index === "number" && index >= 0) {
+      query.set("index", String(index));
+    }
 
     if (version) {
       query.set("v", version);
@@ -800,17 +808,21 @@ export function ProblemReviewPanel({
               Back to instructor dashboard
             </Link>
             <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={getUploadFileRoute(
-                  upload.id,
-                  `${upload.originalFilename}:${upload.createdAt ?? ""}`,
-                )}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
-              >
-                Open uploaded file
-              </a>
+              {upload.sourceFiles.map((sourceFile, sourceFileIndex) => (
+                <a
+                  key={`${upload.id}-source-link-${sourceFileIndex}`}
+                  href={getUploadFileRoute(
+                    upload.id,
+                    `${upload.originalFilename}:${upload.createdAt ?? ""}:${sourceFileIndex}`,
+                    sourceFileIndex,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                >
+                  Open {sourceFile.originalFilename}
+                </a>
+              ))}
             </div>
             <div className="mt-4 grid gap-3">
               <label
@@ -875,9 +887,16 @@ export function ProblemReviewPanel({
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
-              Storage key
+              Source files
             </p>
-            <p className="mt-2 break-all text-sm text-slate-800">{upload.fileUrl}</p>
+            <div className="mt-2 grid gap-2">
+              {upload.sourceFiles.map((sourceFile, sourceFileIndex) => (
+                <div key={`${upload.id}-source-${sourceFileIndex}`}>
+                  <p className="text-sm text-slate-800">{sourceFile.originalFilename}</p>
+                  <p className="break-all text-xs text-slate-500">{sourceFile.storageKey}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
