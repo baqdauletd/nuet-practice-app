@@ -10,6 +10,12 @@ function splitParagraphs(input: string) {
 }
 
 function renderKatex(expression: string, displayMode: boolean) {
+  // KaTeX logs noisy font-metric warnings for currency symbols such as "€".
+  // Fall back to plain text instead of attempting math rendering in that case.
+  if (/[\u20A0-\u20CF]/u.test(expression)) {
+    return null;
+  }
+
   try {
     return katex.renderToString(expression.trim(), {
       displayMode,
