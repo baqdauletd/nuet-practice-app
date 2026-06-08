@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { InstructorAppShell } from "../../components/instructor/InstructorAppShell";
 
 export default function InstructorLayout({
@@ -5,5 +6,9 @@ export default function InstructorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <InstructorAppShell>{children}</InstructorAppShell>;
+  return (
+    <Suspense fallback={null}>
+      <InstructorAppShell>{children}</InstructorAppShell>
+    </Suspense>
+  );
 }
