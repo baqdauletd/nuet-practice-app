@@ -48,7 +48,7 @@ export function StudentDashboardPanel({
   profile: AppUserProfile;
 }) {
   const router = useRouter();
-  const [fileCustomCount, setFileCustomCount] = useState("2");
+  const [fileCustomCount, setFileCustomCount] = useState("1");
   const [selectedUploadId, setSelectedUploadId] = useState("");
   const [todayProgress, setTodayProgress] = useState<SessionProgress | null>(null);
   const [sourceOptions, setSourceOptions] = useState<DailySessionSourceOption[]>([]);
@@ -178,14 +178,11 @@ export function StudentDashboardPanel({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-        <p className="text-sm font-semibold tracking-[0.16em] text-emerald-700 uppercase">
-          Today
-        </p>
-        <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
+        <h2 className="text-2xl font-semibold text-slate-950">
           Student Practice
         </h2>
-        <p className="mt-2 text-sm leading-7 text-slate-700">{formatToday()}</p>
+        <p className="mt-2 text-sm text-slate-600">{formatToday()}</p>
         <div className="mt-5">
           <button
             type="button"
@@ -197,27 +194,19 @@ export function StudentDashboardPanel({
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Start today&apos;s practice
         </h2>
-        <p className="mt-2 text-sm leading-7 text-slate-700">
-          Solve one whole uploaded file, or choose a custom amount from a specific file.
-        </p>
 
         <div className="mt-8 border-t border-slate-200 pt-6">
           <h3 className="text-lg font-semibold text-slate-950">
             Solve a whole file
           </h3>
-          <p className="mt-2 text-sm leading-7 text-slate-700">
-            If an uploaded file has fewer than 15 approved problems, you can solve all of them in one session.
-          </p>
           {isLoading ? (
             <p className="mt-4 text-sm text-slate-600">Loading file options...</p>
           ) : sourceOptions.filter((option) => option.canUseEntireUpload).length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-slate-700">
-              No uploaded files are currently eligible for an all-problems session.
-            </p>
+            <p className="mt-4 text-sm text-slate-700">No file sessions available.</p>
           ) : (
             <div className="mt-5 flex flex-wrap gap-3">
               {sourceOptions
@@ -228,7 +217,7 @@ export function StudentDashboardPanel({
                     type="button"
                     onClick={() => void handleStartWholeFile(option.uploadId)}
                     disabled={isStarting}
-                    className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400"
+                    className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400"
                   >
                     {option.originalFilename} - {option.approvedProblemCount} problems
                   </button>
@@ -241,9 +230,6 @@ export function StudentDashboardPanel({
           <h3 className="text-lg font-semibold text-slate-950">
             Custom from one file
           </h3>
-          <p className="mt-2 text-sm leading-7 text-slate-700">
-            Choose at least 1 problem and the file it should come from.
-          </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
             <label className="grid gap-2 text-sm text-slate-700">
@@ -251,7 +237,7 @@ export function StudentDashboardPanel({
               <select
                 value={selectedUploadId}
                 onChange={(event) => setSelectedUploadId(event.target.value)}
-                className="min-h-12 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#526b5c]"
               >
                 <option value="">Choose a file</option>
                 {sourceOptions.map((option) => (
@@ -270,7 +256,7 @@ export function StudentDashboardPanel({
                 max={30}
                 value={fileCustomCount}
                 onChange={(event) => setFileCustomCount(event.target.value)}
-                className="min-h-12 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#526b5c]"
               />
             </label>
 
@@ -278,7 +264,7 @@ export function StudentDashboardPanel({
               type="button"
               onClick={() => void handleStartCustomFilePractice()}
               disabled={isStarting}
-              className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="min-h-12 border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c] disabled:cursor-not-allowed disabled:border-stone-400 disabled:bg-stone-400"
             >
               Start file practice
             </button>
@@ -286,13 +272,13 @@ export function StudentDashboardPanel({
         </div>
 
         {errorMessage ? (
-          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-6 border border-rose-300 bg-[rgba(255,243,240,0.95)] px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}
       </section>
 
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Latest session today
         </h2>
@@ -300,13 +286,11 @@ export function StudentDashboardPanel({
         {isLoading ? (
           <p className="mt-4 text-sm text-slate-600">Loading session status...</p>
         ) : !todayProgress ? (
-          <p className="mt-4 text-sm leading-7 text-slate-700">
-            No session has been started yet for today.
-          </p>
+          <p className="mt-4 text-sm text-slate-700">No session yet today.</p>
         ) : (
           <div className="mt-5 grid gap-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
                 <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                   Status
                 </p>
@@ -314,7 +298,7 @@ export function StudentDashboardPanel({
                   {formatStatusLabel(todayProgress.status)}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
                 <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                   Progress
                 </p>
@@ -322,7 +306,7 @@ export function StudentDashboardPanel({
                   {todayProgress.submittedCount} / {todayProgress.totalProblems}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
                 <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                   Session
                 </p>
@@ -338,7 +322,7 @@ export function StudentDashboardPanel({
                 onClick={() =>
                   router.push(getContinueProblemPath(todayProgress))
                 }
-                className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
+                className="min-h-12 border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c]"
               >
                 Continue
               </button>
@@ -349,7 +333,7 @@ export function StudentDashboardPanel({
                     getStudentSessionResultsRoute(todayProgress.session.id),
                   )
                 }
-                className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950"
               >
                 View results
               </button>

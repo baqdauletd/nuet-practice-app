@@ -73,6 +73,8 @@ export function ProblemSolver({
   const [currentProblem, setCurrentProblem] = useState<SessionProblemWithProblem | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoSize, setPhotoSize] = useState<"full" | "compact">("full");
+  const [photoRotations, setPhotoRotations] = useState<Record<string, number>>({});
   const [progress, setProgress] = useState<SessionProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -181,9 +183,16 @@ export function ProblemSolver({
     }
   }
 
+  function rotatePhoto(photoKey: string) {
+    setPhotoRotations((current) => ({
+      ...current,
+      [photoKey]: ((current[photoKey] ?? 0) + 90) % 360,
+    }));
+  }
+
   if (isLoading) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <p className="text-sm text-slate-600">Loading problem...</p>
       </section>
     );
@@ -191,7 +200,7 @@ export function ProblemSolver({
 
   if (errorMessage && !currentProblem) {
     return (
-      <section className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-rose-300 bg-[rgba(255,243,240,0.95)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           We could not load this problem.
         </h2>
@@ -202,7 +211,7 @@ export function ProblemSolver({
 
   if (!currentProblem) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Problem not found
         </h2>
@@ -219,18 +228,11 @@ export function ProblemSolver({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-semibold tracking-[0.16em] text-emerald-700 uppercase">
               Problem {currentProblemNumber} of {totalProblems}
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-              Solve one problem at a time
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-slate-700">
-              Correctness, solutions, and AI feedback stay locked until every
-              problem in today&apos;s session has been submitted.
             </p>
           </div>
           <Link
@@ -252,12 +254,12 @@ export function ProblemSolver({
               <Link
                 key={problem.id}
                 href={getStudentSessionProblemRoute(sessionId, problemNumber)}
-                className={`min-h-11 min-w-11 rounded-full border px-3 py-2 text-base font-semibold transition ${
+                className={`min-h-11 min-w-11 border px-3 py-2 text-base font-semibold transition ${
                   isCurrent
-                    ? "border-emerald-400 bg-emerald-100 text-emerald-800"
+                    ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
                     : isSubmitted
-                      ? "border-slate-300 bg-slate-100 text-slate-700 hover:border-slate-400"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                      ? "border-stone-400 bg-[rgba(246,240,231,0.72)] text-slate-700 hover:border-[#526b5c]"
+                      : "border-stone-300 bg-[rgba(255,253,248,0.92)] text-slate-500 hover:border-stone-400 hover:text-slate-700"
                 }`}
               >
                 {problemNumber}
@@ -268,7 +270,7 @@ export function ProblemSolver({
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <ProblemSourceImage
           problemId={currentProblem.problem.id}
           sourceImageUrl={currentProblem.problem.sourceImageUrl}
@@ -290,10 +292,10 @@ export function ProblemSolver({
             return (
               <label
                 key={`${choice.label}-${choice.text}`}
-                className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 text-base leading-7 transition ${
+                className={`flex min-h-14 cursor-pointer items-start gap-3 border px-4 py-4 text-base leading-7 transition ${
                   selectedAnswer === choice.label
-                    ? "border-emerald-400 bg-emerald-50 text-slate-950"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                    ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-slate-950"
+                    : "border-stone-300 bg-[rgba(246,240,231,0.72)] text-slate-700 hover:border-stone-400"
                 }`}
               >
                 <input
@@ -318,7 +320,7 @@ export function ProblemSolver({
           })}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <div className="mt-6 border border-stone-300 bg-[rgba(246,240,231,0.72)] p-5">
           <label className="block text-sm font-medium text-slate-700">
             Notebook solution photos
           </label>
@@ -332,25 +334,59 @@ export function ProblemSolver({
             }
             className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
           />
-          <p className="mt-3 text-sm text-slate-500">
-            {selectedPhotos.length > 0
-              ? `Selected photos: ${selectedPhotos.map((photo) => photo.name).join(", ")}`
-              : "No new photos selected. On a phone, this opens your camera or gallery picker."}
-          </p>
+          {selectedPhotos.length > 0 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              {selectedPhotos.map((photo) => photo.name).join(", ")}
+            </p>
+          ) : null}
           {currentProblem.submission?.solutionPhotoUrls.length ? (
             <div className="mt-4">
-              <p className="text-sm font-medium text-slate-700">
-                Existing uploaded photos
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Choose one or more files above and save again to replace them.
-              </p>
+              <div className="mb-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhotoSize("full")}
+                  className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                    photoSize === "full"
+                      ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                      : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+                  }`}
+                >
+                  Full photos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhotoSize("compact")}
+                  className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                    photoSize === "compact"
+                      ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                      : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+                  }`}
+                >
+                  Compact photos
+                </button>
+              </div>
               <div className="mt-3 grid gap-3">
                 {currentProblem.submission.solutionPhotoUrls.map((_, photoIndex) => (
                   <div
                     key={`${currentProblem.submission?.id ?? currentProblem.id}-photo-${photoIndex}`}
-                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    className={`border border-stone-300 bg-[rgba(255,253,248,0.92)] ${
+                      photoSize === "compact" ? "max-w-md" : ""
+                    }`}
                   >
+                    <div className="flex justify-end border-b border-stone-300 px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          rotatePhoto(
+                            `${currentProblem.submission?.id ?? currentProblem.id}-photo-${photoIndex}`,
+                          )
+                        }
+                        className="border border-stone-400 bg-[rgba(255,253,248,0.9)] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-slate-700 uppercase transition hover:border-stone-500"
+                      >
+                        Rotate
+                      </button>
+                    </div>
+                    <div className="overflow-hidden">
                     <Image
                       src={getStudentSubmissionPhotoRoute(
                         currentProblem.id,
@@ -362,8 +398,15 @@ export function ProblemSolver({
                       width={1200}
                       height={1600}
                       unoptimized
-                      className="h-auto w-full object-contain"
+                      className={`object-contain transition-transform ${
+                        photoSize === "compact" ? "h-auto max-h-[28rem] w-full" : "h-auto w-full"
+                      }`}
+                      style={{
+                        transform: `rotate(${photoRotations[`${currentProblem.submission?.id ?? currentProblem.id}-photo-${photoIndex}`] ?? 0}deg)`,
+                        transformOrigin: "center",
+                      }}
                     />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -380,7 +423,7 @@ export function ProblemSolver({
           {previousIndex ? (
             <Link
               href={getStudentSessionProblemRoute(sessionId, previousIndex)}
-              className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950"
             >
               Previous
             </Link>
@@ -389,14 +432,14 @@ export function ProblemSolver({
             type="button"
             onClick={() => void handleSave()}
             disabled={isSaving || isCompleted}
-            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-12 border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c] disabled:cursor-not-allowed disabled:border-stone-400 disabled:bg-stone-400"
           >
             {isSaving ? "Saving..." : "Save answer"}
           </button>
           {nextIndex ? (
             <Link
               href={getStudentSessionProblemRoute(sessionId, nextIndex)}
-              className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950"
             >
               Next
             </Link>
@@ -404,13 +447,13 @@ export function ProblemSolver({
         </div>
 
         {successMessage ? (
-          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <div className="mt-6 border border-emerald-300 bg-[rgba(239,247,241,0.94)] px-4 py-3 text-sm text-emerald-700">
             {successMessage}
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-6 border border-rose-300 bg-[rgba(255,243,240,0.95)] px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}

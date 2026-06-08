@@ -136,7 +136,7 @@ export function StudentSessionsPanel({
 
   if (isLoading) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <p className="text-sm text-slate-600">Loading your sessions...</p>
       </section>
     );
@@ -144,24 +144,22 @@ export function StudentSessionsPanel({
 
   if (errorMessage) {
     return (
-      <section className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-rose-300 bg-[rgba(255,243,240,0.95)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Session history unavailable
         </h2>
-        <p className="mt-3 text-sm leading-7 text-rose-700">{errorMessage}</p>
+        <p className="mt-3 text-sm text-rose-700">{errorMessage}</p>
       </section>
     );
   }
 
   if (summaries.length === 0) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Session history
         </h2>
-        <p className="mt-3 text-sm leading-7 text-slate-700">
-          No practice sessions yet. Start one from the student dashboard.
-        </p>
+        <p className="mt-3 text-sm text-slate-700">No sessions yet.</p>
       </section>
     );
   }
@@ -171,7 +169,7 @@ export function StudentSessionsPanel({
       {summaries.map((summary) => (
         <article
           key={summary.session.id}
-          className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]"
+          className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]"
         >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -190,8 +188,8 @@ export function StudentSessionsPanel({
             <SessionActions summary={summary} />
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
               <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                 Progress
               </p>
@@ -199,7 +197,7 @@ export function StudentSessionsPanel({
                 {summary.submittedCount} / {summary.totalProblems}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
               <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                 Session size
               </p>
@@ -207,7 +205,7 @@ export function StudentSessionsPanel({
                 {summary.totalProblems} problems
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
               <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
                 Next step
               </p>
@@ -217,14 +215,6 @@ export function StudentSessionsPanel({
                   : summary.status === "ready_for_grading"
                     ? "Open results to grade"
                     : `Continue at problem ${summary.firstIncompleteIndex ?? 1}`}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
-                Session ID
-              </p>
-              <p className="mt-2 break-all text-sm font-medium text-slate-900">
-                {summary.session.id}
               </p>
             </div>
           </div>

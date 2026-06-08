@@ -1,40 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentUserProfile, signOut } from "../../lib/auth";
-import { ROUTES } from "../../lib/constants";
-import { listConnectedStudents } from "../../lib/connections/client";
-import { listStudentSessionSummaries } from "../../lib/student-sessions/client";
+import {
+  getContinueProblemPath,
+  listStudentSessionSummaries,
+} from "../../lib/student-sessions/client";
+import {
+  getStudentSessionResultsRoute,
+  ROUTES,
+} from "../../lib/constants";
 import type { AppUserProfile, StudentSessionSummary } from "../../lib/types";
-import { InstructorShellProvider } from "./InstructorShellContext";
+import { StudentShellProvider } from "./StudentShellContext";
 
-function getDisplayName(profile: AppUserProfile) {
-  return profile.name?.trim() || profile.nickname || profile.email;
-}
-
-function getReviewHref(studentId: string, sessionId?: string) {
-  const query = new URLSearchParams();
-  query.set("studentId", studentId);
-
-  if (sessionId) {
-    query.set("sessionId", sessionId);
+function getSessionHref(summary: StudentSessionSummary) {
+  if (summary.status === "completed" || summary.status === "ready_for_grading") {
+    return getStudentSessionResultsRoute(summary.session.id);
   }
 
-  return `${ROUTES.instructor}/review?${query.toString()}`;
+  return getContinueProblemPath(summary);
 }
 
-export function InstructorAppShell({
+export function StudentAppShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<AppUserProfile | null>(null);
-  const [students, setStudents] = useState<AppUserProfile[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<StudentSessionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarLoading, setIsSidebarLoading] = useState(true);
@@ -63,14 +59,14 @@ export function InstructorAppShell({
 
         if (result.status === "missing_profile") {
           setErrorMessage(
-            "Your account exists, but no instructor profile has been assigned yet.",
+            "Your account exists, but no student profile has been assigned yet.",
           );
           return;
         }
 
-        if (result.profile.role !== "instructor") {
+        if (result.profile.role !== "student") {
           router.replace(
-            result.profile.role === "student" ? ROUTES.student : ROUTES.login,
+            result.profile.role === "instructor" ? ROUTES.instructor : ROUTES.login,
           );
           return;
         }
@@ -110,13 +106,13 @@ export function InstructorAppShell({
         setIsSidebarLoading(true);
         setSidebarErrorMessage(null);
 
-        const nextStudents = await listConnectedStudents(profile.id);
+        const nextSummaries = await listStudentSessionSummaries(profile.id);
 
         if (!isActive) {
           return;
         }
 
-        setStudents(nextStudents);
+        setSessionSummaries(nextSummaries);
       } catch (error) {
         if (!isActive) {
           return;
@@ -125,7 +121,7 @@ export function InstructorAppShell({
         setSidebarErrorMessage(
           error instanceof Error
             ? error.message
-            : "Unable to load connected students.",
+            : "Unable to load your sessions.",
         );
       } finally {
         if (isActive) {
@@ -141,72 +137,10 @@ export function InstructorAppShell({
     };
   }, [profile]);
 
-  const selectedSidebarStudentId = useMemo(() => {
-    const requestedStudentId = searchParams.get("studentId");
-
-    if (requestedStudentId && students.some((student) => student.id === requestedStudentId)) {
-      return requestedStudentId;
-    }
-
-    return students[0]?.id ?? "";
-  }, [searchParams, students]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadSessionSummaries() {
-      if (!selectedSidebarStudentId) {
-        setSessionSummaries([]);
-        return;
-      }
-
-      try {
-        setIsSidebarLoading(true);
-        const nextSessionSummaries = await listStudentSessionSummaries(
-          selectedSidebarStudentId,
-        );
-
-        if (!isActive) {
-          return;
-        }
-
-        setSessionSummaries(nextSessionSummaries);
-      } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
-        setSidebarErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to load the selected student's sessions.",
-        );
-      } finally {
-        if (isActive) {
-          setIsSidebarLoading(false);
-        }
-      }
-    }
-
-    void loadSessionSummaries();
-
-    return () => {
-      isActive = false;
-    };
-  }, [selectedSidebarStudentId]);
-
-  const selectedSidebarSessionId = useMemo(() => {
-    const requestedSessionId = searchParams.get("sessionId");
-
-    if (
-      requestedSessionId &&
-      sessionSummaries.some((summary) => summary.session.id === requestedSessionId)
-    ) {
-      return requestedSessionId;
-    }
-
-    return sessionSummaries[0]?.session.id ?? "";
-  }, [searchParams, sessionSummaries]);
+  const activeSessionId = useMemo(() => {
+    const match = pathname.match(/\/student\/session\/([^/]+)/);
+    return match?.[1] ?? "";
+  }, [pathname]);
 
   async function handleSignOut() {
     setIsSigningOut(true);
@@ -219,19 +153,11 @@ export function InstructorAppShell({
     }
   }
 
-  function handleSidebarStudentChange(studentId: string) {
-    if (!studentId) {
-      return;
-    }
-
-    router.push(getReviewHref(studentId));
-  }
-
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#111111] px-6 py-12 text-stone-100">
         <div className="border border-stone-800 bg-[#171717] px-5 py-4 text-sm text-stone-300">
-          Loading instructor workspace...
+          Loading student workspace...
         </div>
       </main>
     );
@@ -245,7 +171,7 @@ export function InstructorAppShell({
             Workspace Error
           </p>
           <p className="mt-4 text-sm leading-7 text-stone-300">
-            {errorMessage ?? "Unable to load the instructor workspace."}
+            {errorMessage ?? "Unable to load the student workspace."}
           </p>
           <Link
             href={ROUTES.login}
@@ -259,13 +185,13 @@ export function InstructorAppShell({
   }
 
   return (
-    <InstructorShellProvider value={{ profile }}>
+    <StudentShellProvider value={{ profile }}>
       <div className="min-h-screen bg-[#111111] text-stone-100">
         <div className="flex min-h-screen flex-col lg:flex-row">
           <aside className="w-full shrink-0 border-b border-stone-800 bg-[#0c0c0c] lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[320px] lg:self-start lg:flex-col lg:border-r lg:border-b-0">
             <div className="border-b border-stone-800 px-5 py-5">
-              <Link href={`${ROUTES.instructor}/students`} className="text-xl font-semibold tracking-tight">
-                Instructor
+              <Link href={`${ROUTES.student}/practice`} className="text-xl font-semibold tracking-tight">
+                Student
               </Link>
             </div>
 
@@ -277,25 +203,26 @@ export function InstructorAppShell({
                   </p>
                   <div className="mt-3 grid gap-1">
                     <Link
-                      href={`${ROUTES.instructor}/students`}
+                      href={`${ROUTES.student}/practice`}
                       className={`px-3 py-3 text-sm transition ${
-                        pathname.startsWith(`${ROUTES.instructor}/students`) ||
-                        pathname.startsWith(`${ROUTES.instructor}/review`)
+                        pathname.startsWith(`${ROUTES.student}/practice`) ||
+                        pathname.startsWith(`${ROUTES.student}/sessions`) ||
+                        pathname.startsWith(`${ROUTES.student}/session`)
                           ? "bg-[#1b1b1b] text-stone-100"
                           : "text-stone-400 hover:bg-[#151515] hover:text-stone-200"
                       }`}
                     >
-                      Students
+                      Practice
                     </Link>
                     <Link
-                      href={`${ROUTES.instructor}/uploads`}
+                      href={`${ROUTES.student}/instructors`}
                       className={`px-3 py-3 text-sm transition ${
-                        pathname.startsWith(`${ROUTES.instructor}/uploads`)
+                        pathname.startsWith(`${ROUTES.student}/instructors`)
                           ? "bg-[#1b1b1b] text-stone-100"
                           : "text-stone-400 hover:bg-[#151515] hover:text-stone-200"
                       }`}
                     >
-                      Uploaded files
+                      Instructor problems
                     </Link>
                   </div>
                 </section>
@@ -305,61 +232,38 @@ export function InstructorAppShell({
                     <p className="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase">
                       Sessions
                     </p>
-                    {students.length > 0 ? (
-                      <span className="text-[11px] text-stone-500">{students.length}</span>
+                    {sessionSummaries.length > 0 ? (
+                      <span className="text-[11px] text-stone-500">{sessionSummaries.length}</span>
                     ) : null}
                   </div>
-                  <div className="mt-3 grid gap-3">
-                    <select
-                      value={selectedSidebarStudentId}
-                      onChange={(event) => handleSidebarStudentChange(event.target.value)}
-                      className="border border-stone-800 bg-[#121212] px-3 py-3 text-sm text-stone-200 outline-none"
-                    >
-                      <option value="">Choose student</option>
-                      {students.map((student) => (
-                        <option key={student.id} value={student.id}>
-                          {getDisplayName(student)}
-                        </option>
-                      ))}
-                    </select>
-
+                  <div className="mt-3 grid gap-1">
                     {sidebarErrorMessage ? (
                       <p className="px-2 text-xs leading-6 text-rose-300">
                         {sidebarErrorMessage}
                       </p>
-                    ) : null}
-
-                    {isSidebarLoading && selectedSidebarStudentId ? (
+                    ) : isSidebarLoading ? (
                       <p className="px-2 text-xs text-stone-500">Loading...</p>
-                    ) : !selectedSidebarStudentId ? (
-                      <p className="px-2 text-xs text-stone-500">No student selected.</p>
                     ) : sessionSummaries.length === 0 ? (
                       <p className="px-2 text-xs text-stone-500">No sessions yet.</p>
                     ) : (
-                      <div className="grid gap-1">
-                        {sessionSummaries.map((summary) => (
-                          <Link
-                            key={summary.session.id}
-                            href={getReviewHref(
-                              selectedSidebarStudentId,
-                              summary.session.id,
-                            )}
-                            className={`px-3 py-3 transition ${
-                              pathname.startsWith(`${ROUTES.instructor}/review`) &&
-                              selectedSidebarSessionId === summary.session.id
-                                ? "bg-[#1b1b1b] text-stone-100"
-                                : "text-stone-400 hover:bg-[#151515] hover:text-stone-200"
-                            }`}
-                          >
-                            <p className="text-sm font-medium">
-                              {summary.session.sessionDate}
-                            </p>
-                            <p className="mt-1 text-xs text-stone-500">
-                              {summary.submittedCount}/{summary.totalProblems} submitted
-                            </p>
-                          </Link>
-                        ))}
-                      </div>
+                      sessionSummaries.map((summary) => (
+                        <Link
+                          key={summary.session.id}
+                          href={getSessionHref(summary)}
+                          className={`px-3 py-3 transition ${
+                            activeSessionId === summary.session.id
+                              ? "bg-[#1b1b1b] text-stone-100"
+                              : "text-stone-400 hover:bg-[#151515] hover:text-stone-200"
+                          }`}
+                        >
+                          <p className="text-sm font-medium">
+                            {summary.session.sessionDate}
+                          </p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            {summary.submittedCount}/{summary.totalProblems} submitted
+                          </p>
+                        </Link>
+                      ))
                     )}
                   </div>
                 </section>
@@ -368,9 +272,9 @@ export function InstructorAppShell({
 
             <div className="border-t border-stone-800 px-4 py-4 lg:mt-auto">
               <Link
-                href={`${ROUTES.instructor}/account`}
+                href={`${ROUTES.student}/account`}
                 className={`block px-3 py-3 text-sm transition ${
-                  pathname.startsWith(`${ROUTES.instructor}/account`)
+                  pathname.startsWith(`${ROUTES.student}/account`)
                     ? "bg-[#1b1b1b] text-stone-100"
                     : "text-stone-400 hover:bg-[#151515] hover:text-stone-200"
                 }`}
@@ -401,6 +305,6 @@ export function InstructorAppShell({
           </main>
         </div>
       </div>
-    </InstructorShellProvider>
+    </StudentShellProvider>
   );
 }

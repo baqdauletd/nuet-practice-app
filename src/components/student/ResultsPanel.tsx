@@ -24,21 +24,6 @@ import {
   getStudentSubmissionPhotoRoute,
 } from "../../lib/constants";
 
-function DashboardButton({
-  className = "",
-}: {
-  className?: string;
-}) {
-  return (
-    <Link
-      href="/student"
-      className={`inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 ${className}`.trim()}
-    >
-      Back to Dashboard
-    </Link>
-  );
-}
-
 function StructuredText({
   text,
   emptyText,
@@ -87,7 +72,7 @@ function FeedbackSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-5">
+    <section className="border border-stone-300 bg-[rgba(255,253,248,0.92)] p-4 sm:p-5">
       <h4 className="text-sm font-semibold tracking-[0.14em] text-slate-500 uppercase">
         {title}
       </h4>
@@ -106,9 +91,18 @@ function GradingCard({
   const feedback = item.submission?.aiFeedback as GradingFeedback | null;
   const usedFallbackFeedback =
     feedback?.feedback === "AI feedback failed, but MCQ correctness was recorded.";
+  const [photoSize, setPhotoSize] = useState<"full" | "compact">("full");
+  const [photoRotations, setPhotoRotations] = useState<Record<string, number>>({});
+
+  function rotatePhoto(photoKey: string) {
+    setPhotoRotations((current) => ({
+      ...current,
+      [photoKey]: ((current[photoKey] ?? 0) + 90) % 360,
+    }));
+  }
 
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-6">
+    <article className="overflow-hidden border border-stone-300 bg-[rgba(255,253,248,0.94)] p-4 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
@@ -156,13 +150,13 @@ function GradingCard({
         })}
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700 sm:p-5">
+      <div className="mt-5 grid gap-3 border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4 text-sm leading-7 text-slate-700 sm:p-5">
         <p>
           <span className="font-semibold text-slate-900">Your answer:</span>{" "}
           {item.submission?.selectedAnswer ?? "No answer"}
         </p>
         {usedFallbackFeedback ? (
-          <p className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          <p className="border border-amber-300 bg-[rgba(255,248,229,0.95)] px-3 py-2 text-sm text-amber-700">
             AI tutoring feedback could not be generated for this problem, but your MCQ correctness was still recorded.
           </p>
         ) : null}
@@ -197,12 +191,50 @@ function GradingCard({
       {item.submission?.solutionPhotoUrls.length ? (
         <div className="mt-5">
           <FeedbackSection title="Your Uploaded Photos">
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPhotoSize("full")}
+                className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                  photoSize === "full"
+                    ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                    : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+                }`}
+              >
+                Full photos
+              </button>
+              <button
+                type="button"
+                onClick={() => setPhotoSize("compact")}
+                className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                  photoSize === "compact"
+                    ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                    : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+                }`}
+              >
+                Compact photos
+              </button>
+            </div>
             <div className="grid gap-3">
               {item.submission.solutionPhotoUrls.map((_, photoIndex) => (
                 <div
                   key={`${item.submission?.id ?? item.id}-photo-${photoIndex}`}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                >
+                    className={`border border-stone-300 bg-[rgba(255,253,248,0.92)] ${
+                      photoSize === "compact" ? "max-w-md" : ""
+                    }`}
+                  >
+                  <div className="flex justify-end border-b border-stone-300 px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        rotatePhoto(`${item.submission?.id ?? item.id}-photo-${photoIndex}`)
+                      }
+                      className="border border-stone-400 bg-[rgba(255,253,248,0.9)] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-slate-700 uppercase transition hover:border-stone-500"
+                    >
+                      Rotate
+                    </button>
+                  </div>
+                  <div className="overflow-hidden">
                   <Image
                     src={getStudentSubmissionPhotoRoute(
                       item.id,
@@ -214,8 +246,15 @@ function GradingCard({
                     width={1200}
                     height={1600}
                     unoptimized
-                    className="h-auto w-full object-contain"
+                    className={`object-contain transition-transform ${
+                      photoSize === "compact" ? "h-auto max-h-[28rem] w-full" : "h-auto w-full"
+                    }`}
+                    style={{
+                      transform: `rotate(${photoRotations[`${item.submission?.id ?? item.id}-photo-${photoIndex}`] ?? 0}deg)`,
+                      transformOrigin: "center",
+                    }}
                   />
+                  </div>
                 </div>
               ))}
             </div>
@@ -343,8 +382,7 @@ export function ResultsPanel({
 
   if (isLoading) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
-        <DashboardButton className="mb-4" />
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-6 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:p-7">
         <p className="text-sm text-slate-600">Loading results...</p>
       </section>
     );
@@ -352,8 +390,7 @@ export function ResultsPanel({
 
   if (errorMessage && !progress) {
     return (
-      <section className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-        <DashboardButton className="mb-4" />
+      <section className="border border-rose-300 bg-[rgba(255,243,240,0.95)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           We could not load these results.
         </h2>
@@ -368,22 +405,17 @@ export function ResultsPanel({
 
   if (!progress.allSubmitted) {
     return (
-      <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-7 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-        <DashboardButton className="mb-4" />
+      <section className="border border-amber-300 bg-[rgba(255,248,229,0.95)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <h2 className="text-2xl font-semibold text-slate-950">
           Results are locked
         </h2>
-        <p className="mt-4 text-sm leading-7 text-slate-700">
-          Finish all today&apos;s problems before seeing correctness, solutions,
-          or feedback.
-        </p>
         <p className="mt-4 text-sm font-medium text-slate-800">
           Progress: {progress.submittedCount} / {progress.totalProblems}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href={getContinueProblemPath(progress)}
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
+            className="inline-flex min-h-12 items-center justify-center border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c]"
           >
             Continue solving
           </Link>
@@ -394,33 +426,28 @@ export function ResultsPanel({
 
   if (!progress.session.completed) {
     return (
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
-        <DashboardButton className="mb-4" />
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-6 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:p-7">
         <h2 className="text-2xl font-semibold text-slate-950">
           All problems submitted
         </h2>
-        <p className="mt-4 text-sm leading-7 text-slate-700">
-          Generate feedback when ready. This will compare your MCQ answers,
-          analyze any notebook photos, and prepare guidance for each problem.
-        </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => void handleGradeSession()}
             disabled={isGrading}
-            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-h-12 border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c] disabled:cursor-not-allowed disabled:border-stone-400 disabled:bg-stone-400"
           >
             {isGrading ? "Generating..." : "Generate AI Feedback"}
           </button>
           <Link
             href={getContinueProblemPath(progress)}
-            className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+            className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950"
           >
             Review submissions
           </Link>
         </div>
         {errorMessage ? (
-          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-6 border border-rose-300 bg-[rgba(255,243,240,0.95)] px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}
@@ -430,39 +457,35 @@ export function ResultsPanel({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)] sm:p-7">
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-6 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <DashboardButton className="mb-4" />
             <h2 className="text-2xl font-semibold text-slate-950">
               Session results
             </h2>
-            <p className="mt-2 text-sm leading-7 text-slate-700">
-              Review correctness, mistakes, your submitted work, and the saved instructor solution for each problem.
-            </p>
           </div>
           <Link
             href={getStudentSessionResultsRoute(sessionId)}
-            className="min-h-12 rounded-full border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+            className="min-h-12 border border-stone-400 bg-[rgba(255,253,248,0.9)] px-4 py-3 text-base font-semibold text-slate-700 transition hover:border-[#526b5c] hover:text-slate-950"
           >
             Refresh results
           </Link>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4">
             <p className="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
               Total
             </p>
             <p className="mt-2 text-sm font-medium text-slate-900">{problems.length}</p>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="border border-emerald-300 bg-[rgba(239,247,241,0.94)] p-4">
             <p className="text-xs font-semibold tracking-[0.16em] text-emerald-700 uppercase">
               Correct
             </p>
             <p className="mt-2 text-sm font-medium text-emerald-900">{correctCount}</p>
           </div>
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+          <div className="border border-rose-300 bg-[rgba(255,243,240,0.95)] p-4">
             <p className="text-xs font-semibold tracking-[0.16em] text-rose-700 uppercase">
               Incorrect
             </p>
@@ -473,7 +496,7 @@ export function ResultsPanel({
         </div>
 
         {errorMessage ? (
-          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-6 border border-rose-300 bg-[rgba(255,243,240,0.95)] px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}
@@ -483,10 +506,6 @@ export function ResultsPanel({
         {problems.map((item) => (
           <GradingCard key={item.id} item={item} profile={profile} />
         ))}
-      </div>
-
-      <div className="flex justify-start">
-        <DashboardButton />
       </div>
     </div>
   );
