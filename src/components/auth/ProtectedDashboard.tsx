@@ -87,7 +87,7 @@ export function ProtectedDashboard({
   if (isLoading) {
     return (
       <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="rounded-[1.5rem] border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
+        <div className="rounded-[1.5rem] border border-stone-300 bg-[rgba(255,253,248,0.92)] px-6 py-5 text-sm text-slate-600 shadow-[0_18px_40px_-30px_rgba(50,44,35,0.35)]">
           Checking your access...
         </div>
       </main>
@@ -97,8 +97,8 @@ export function ProtectedDashboard({
   if (missingProfile) {
     return (
       <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="w-full max-w-xl rounded-[1.75rem] border border-amber-200 bg-amber-50 p-8 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-          <p className="text-sm font-semibold tracking-[0.18em] text-amber-700 uppercase">
+        <div className="w-full max-w-xl rounded-[1.75rem] border border-amber-300 bg-[rgba(255,248,232,0.94)] p-8 shadow-[0_18px_40px_-30px_rgba(50,44,35,0.35)]">
+          <p className="text-sm font-semibold tracking-[0.18em] text-amber-800 uppercase">
             Profile Required
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-slate-950">
@@ -111,7 +111,7 @@ export function ProtectedDashboard({
           <div className="mt-6">
             <Link
               href={ROUTES.login}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="rounded-full border border-stone-400 bg-[rgba(255,253,248,0.9)] px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-stone-500 hover:text-slate-950"
             >
               Back to login
             </Link>
@@ -124,8 +124,8 @@ export function ProtectedDashboard({
   if (errorMessage) {
     return (
       <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="w-full max-w-xl rounded-[1.75rem] border border-rose-200 bg-rose-50 p-8 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-          <p className="text-sm font-semibold tracking-[0.18em] text-rose-700 uppercase">
+        <div className="w-full max-w-xl rounded-[1.75rem] border border-rose-300 bg-[rgba(255,243,240,0.95)] p-8 shadow-[0_18px_40px_-30px_rgba(50,44,35,0.35)]">
+          <p className="text-sm font-semibold tracking-[0.18em] text-rose-800 uppercase">
             Access Error
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-slate-950">
@@ -135,7 +135,7 @@ export function ProtectedDashboard({
           <div className="mt-6">
             <Link
               href={ROUTES.login}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+              className="rounded-full border border-stone-400 bg-[rgba(255,253,248,0.9)] px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-stone-500 hover:text-slate-950"
             >
               Return to login
             </Link>
@@ -152,9 +152,9 @@ export function ProtectedDashboard({
   return (
     <main className="flex flex-1 justify-center px-6 py-12 sm:px-8 lg:px-12">
       <div className="flex w-full max-w-5xl flex-col gap-8">
-        <header className="flex flex-col gap-4 rounded-[1.75rem] border border-white/60 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(236,253,245,0.96))] p-8 shadow-[0_30px_100px_-50px_rgba(15,23,42,0.45)] sm:flex-row sm:items-start sm:justify-between">
+        <header className="flex flex-col gap-4 rounded-[1.75rem] border border-stone-300 bg-[linear-gradient(180deg,rgba(255,253,248,0.96),rgba(241,235,224,0.96))] p-8 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-3">
-            <p className="text-sm font-semibold tracking-[0.18em] text-emerald-700 uppercase">
+            <p className="text-sm font-semibold tracking-[0.18em] text-[#526b5c] uppercase">
               {profile.role}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950">

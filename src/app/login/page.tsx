@@ -54,9 +54,9 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
-      <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_30px_100px_-50px_rgba(15,23,42,0.45)] sm:p-10">
+      <section className="w-full max-w-md border border-stone-300 bg-[rgba(255,253,248,0.95)] p-8 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)] sm:p-10">
         <div className="mb-8 text-center">
-          <p className="text-sm font-semibold tracking-[0.18em] text-emerald-700 uppercase">
+          <p className="text-sm font-semibold tracking-[0.18em] text-[#526b5c] uppercase">
             Private Access
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
@@ -83,7 +83,7 @@ export default function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
-              className="min-h-12 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
+              className="min-h-12 w-full border border-stone-400 bg-[rgba(246,240,231,0.9)] px-4 py-3 text-base text-slate-950 outline-none transition focus:border-[#526b5c] focus:bg-[rgba(255,253,248,0.98)]"
             />
           </div>
 
@@ -101,21 +101,21 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="min-h-12 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-emerald-500 focus:bg-white"
+              className="min-h-12 w-full border border-stone-400 bg-[rgba(246,240,231,0.9)] px-4 py-3 text-base text-slate-950 outline-none transition focus:border-[#526b5c] focus:bg-[rgba(255,253,248,0.98)]"
             />
           </div>
 
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+            className="min-h-12 w-full border border-[#43594c] bg-[#526b5c] px-5 py-3 text-base font-semibold text-white transition hover:bg-[#43594c] disabled:cursor-not-allowed disabled:border-stone-400 disabled:bg-stone-400"
           >
             {isPending ? "Signing in..." : "Log in"}
           </button>
 
           {errorMessage ? (
             <div className="space-y-2">
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
+              <div className="border border-rose-300 bg-[rgba(255,243,240,0.95)] px-4 py-3 text-sm leading-7 text-rose-800">
                 {errorMessage}
               </div>
             </div>
