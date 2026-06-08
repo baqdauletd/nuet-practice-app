@@ -627,10 +627,10 @@ function ProblemEditorCard({
 function DashboardButton() {
   return (
     <Link
-      href={ROUTES.instructor}
+      href={`${ROUTES.instructor}/uploads`}
       className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
     >
-      Back to Dashboard
+      Back to uploaded files
     </Link>
   );
 }
@@ -781,10 +781,10 @@ export function ProblemReviewPanel({
         <p className="mt-4 text-sm leading-7 text-slate-700">{errorMessage}</p>
         <div className="mt-6">
           <Link
-            href={ROUTES.instructor}
+            href={`${ROUTES.instructor}/uploads`}
             className="text-sm font-medium text-emerald-700 transition hover:text-emerald-800"
           >
-            Back to instructor dashboard
+            Back to uploaded files
           </Link>
         </div>
       </section>
@@ -802,10 +802,10 @@ export function ProblemReviewPanel({
           <div>
             <DashboardButton />
             <Link
-              href={ROUTES.instructor}
+              href={`${ROUTES.instructor}/uploads`}
               className="mt-4 block text-sm font-medium text-emerald-700 transition hover:text-emerald-800"
             >
-              Back to instructor dashboard
+              Back to uploaded files
             </Link>
             <div className="mt-4 flex flex-wrap gap-3">
               {upload.sourceFiles.map((sourceFile, sourceFileIndex) => (

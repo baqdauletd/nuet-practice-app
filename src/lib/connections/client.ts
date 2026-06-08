@@ -709,6 +709,29 @@ export async function listConnectedStudents(instructorId: string) {
   return listProfilesByIds(studentIds);
 }
 
+export async function disconnectStudent(
+  instructorId: string,
+  studentId: string,
+) {
+  const connection = await getConnectionByPair(instructorId, studentId);
+
+  if (!connection || connection.status !== "accepted") {
+    throw new Error("This student is not currently connected.");
+  }
+
+  const insforge = getInsforgeClient();
+  const { error } = await insforge.database
+    .from("instructor_student_connections")
+    .delete()
+    .eq("id", connection.id)
+    .eq("instructor_id", instructorId)
+    .eq("student_id", studentId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function listConnectedInstructors(studentId: string) {
   const connections = await getConnectionRowsForStudent(studentId, ["accepted"]);
   const instructorIds = connections.map((connection) => connection.instructorId);
