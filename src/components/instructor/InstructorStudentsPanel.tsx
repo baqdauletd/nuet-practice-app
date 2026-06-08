@@ -22,6 +22,7 @@ export function InstructorStudentsPanel() {
   const { profile } = useInstructorShell();
   const [studentNickname, setStudentNickname] = useState("");
   const [requests, setRequests] = useState<ConnectionRequestSummary[]>([]);
+  const [showRequests, setShowRequests] = useState(false);
   const [students, setStudents] = useState<AppUserProfile[]>([]);
   const [ownedProblems, setOwnedProblems] = useState<
     Array<{ problem: AssignedProblem["problem"]; upload: AssignedProblem["upload"] }>
@@ -297,34 +298,21 @@ export function InstructorStudentsPanel() {
   return (
     <div className="grid gap-6">
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
-        <p className="text-sm font-semibold tracking-[0.16em] text-[#526b5c] uppercase">
-          Students
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           Manage students and assignments
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-700">
-          Send connection requests, review accepted students, and assign approved
-          problems by whole file or by individual problem.
-        </p>
       </section>
 
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div>
-            <p className="text-sm font-semibold tracking-[0.16em] text-slate-500 uppercase">
-              Your nickname
-            </p>
-            <p className="mt-3 border border-emerald-300 bg-[rgba(239,247,241,0.92)] px-4 py-3 text-base font-semibold text-emerald-800">
+            <p className="border border-emerald-300 bg-[rgba(239,247,241,0.92)] px-4 py-3 text-base font-semibold text-emerald-800">
               {profile.nickname ?? "Nickname unavailable"}
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-semibold tracking-[0.16em] text-slate-500 uppercase">
-              Connect by nickname
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input
                 type="text"
                 value={studentNickname}
@@ -340,84 +328,86 @@ export function InstructorStudentsPanel() {
               >
                 {isSending ? "Sending..." : "Send request"}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowRequests((current) => !current)}
+                className="border border-stone-400 bg-[rgba(255,253,248,0.9)] px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-stone-500"
+              >
+                {showRequests ? "Hide requests" : `Requests (${requests.length})`}
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-5">
-            <p className="text-sm font-semibold text-slate-950">Requests</p>
-            <div className="mt-4 grid gap-3">
-              {isLoading ? (
-                <p className="text-sm text-slate-600">Loading requests...</p>
-              ) : requests.length === 0 ? (
-                <p className="text-sm text-slate-600">No requests yet.</p>
-              ) : (
-                requests.map((request) => (
-                  <article
-                    key={request.connection.id}
-                    className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-4"
-                  >
-                    <p className="font-medium text-slate-900">
-                      {getDisplayName(request.student)}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Nickname: {request.student.nickname ?? "Unknown"}
-                    </p>
-                    <p className="mt-2 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
-                      {request.connection.status}
-                    </p>
-                  </article>
-                ))
-              )}
-            </div>
+      {showRequests ? (
+        <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
+          <div className="grid gap-3">
+            {isLoading ? (
+              <p className="text-sm text-slate-600">Loading requests...</p>
+            ) : requests.length === 0 ? (
+              <p className="text-sm text-slate-600">No requests yet.</p>
+            ) : (
+              requests.map((request) => (
+                <article
+                  key={request.connection.id}
+                  className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-4"
+                >
+                  <p className="font-medium text-slate-900">
+                    {getDisplayName(request.student)}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
+                    {request.connection.status}
+                  </p>
+                </article>
+              ))
+            )}
           </div>
+        </section>
+      ) : null}
 
-          <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-5">
-            <p className="text-sm font-semibold text-slate-950">Connected students</p>
-            <div className="mt-4 grid gap-3">
-              {isLoading ? (
-                <p className="text-sm text-slate-600">Loading students...</p>
-              ) : students.length === 0 ? (
-                <p className="text-sm text-slate-600">No connected students yet.</p>
-              ) : (
-                students.map((student) => (
-                  <article
-                    key={student.id}
-                    className={`border p-4 ${
-                      selectedStudentId === student.id
-                        ? "border-[#526b5c] bg-[rgba(239,247,241,0.82)]"
-                        : "border-stone-300 bg-[rgba(255,253,248,0.94)]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedStudentId(student.id)}
-                        className="min-w-0 text-left"
-                      >
-                        <p className="font-medium text-slate-900">
-                          {getDisplayName(student)}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          Nickname: {student.nickname ?? "Unknown"}
-                        </p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDisconnect(student.id)}
-                        disabled={isDisconnectingStudentId === student.id}
-                        className="border border-rose-300 px-3 py-2 text-xs font-semibold tracking-[0.14em] text-rose-700 uppercase transition hover:bg-rose-50 disabled:opacity-60"
-                      >
-                        {isDisconnectingStudentId === student.id ? "Removing..." : "Remove"}
-                      </button>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
+      <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
+        <div className="border border-stone-300 bg-[rgba(246,240,231,0.72)] p-5">
+          <div className="grid gap-3">
+            {isLoading ? (
+              <p className="text-sm text-slate-600">Loading students...</p>
+            ) : students.length === 0 ? (
+              <p className="text-sm text-slate-600">No connected students yet.</p>
+            ) : (
+              students.map((student) => (
+                <article
+                  key={student.id}
+                  className={`border p-4 ${
+                    selectedStudentId === student.id
+                      ? "border-[#526b5c] bg-[rgba(239,247,241,0.82)]"
+                      : "border-stone-300 bg-[rgba(255,253,248,0.94)]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStudentId(student.id)}
+                      className="min-w-0 text-left"
+                    >
+                      <p className="font-medium text-slate-900">
+                        {getDisplayName(student)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {student.nickname ?? "Unknown"}
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDisconnect(student.id)}
+                      disabled={isDisconnectingStudentId === student.id}
+                      className="border border-rose-300 px-3 py-2 text-xs font-semibold tracking-[0.14em] text-rose-700 uppercase transition hover:bg-rose-50 disabled:opacity-60"
+                    >
+                      {isDisconnectingStudentId === student.id ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -428,10 +418,6 @@ export function InstructorStudentsPanel() {
             <h2 className="text-2xl font-semibold text-slate-950">
               Assign approved problems
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-700">
-              Start with file names, open each file, and assign the whole file at
-              once or pick individual problems. Existing assignments stay marked.
-            </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <select
@@ -470,10 +456,7 @@ export function InstructorStudentsPanel() {
               const selectableCount = group.items.filter(
                 (item) => !assignedProblemIds.has(item.problem.id),
               ).length;
-              const isExpanded =
-                expandedUploadIds.includes(group.uploadId) ||
-                (expandedUploadIds.length === 0 &&
-                  groupedOwnedProblems[0]?.uploadId === group.uploadId);
+              const isExpanded = expandedUploadIds.includes(group.uploadId);
               const unassignedProblemIds = group.items
                 .map((item) => item.problem.id)
                 .filter((problemId) => !assignedProblemIds.has(problemId));
@@ -492,14 +475,17 @@ export function InstructorStudentsPanel() {
                     <button
                       type="button"
                       onClick={() => toggleUploadExpanded(group.uploadId)}
-                      className="text-left"
+                      className="flex items-center gap-3 text-left"
                     >
+                      <span className="text-base text-slate-500">
+                        {isExpanded ? "▾" : "▸"}
+                      </span>
                       <p className="text-lg font-semibold text-slate-950">
                         {group.uploadName}
                       </p>
-                      <p className="mt-1 text-sm text-slate-600">
+                      <span className="text-sm text-slate-600">
                         {assignedCount}/{group.items.length} assigned
-                      </p>
+                      </span>
                     </button>
                     <button
                       type="button"

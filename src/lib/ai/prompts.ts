@@ -57,7 +57,6 @@ Tasks:
 3. Identify mistakes if any.
 4. Explain how to fix the mistakes.
 5. Give a guided solution.
-6. Give the most optimal or faster method if useful.
 
 Important grading rule:
 - MCQ correctness is determined primarily by comparing selected_answer with correct_answer.
@@ -70,7 +69,6 @@ Important grading rule:
 - Write "feedback" as a short paragraph.
 - Return "mistakes" as an array of short bullet-style strings.
 - Write "guided_solution" as a clear numbered sequence of steps in one string, using line breaks between steps when possible.
-- Write "optimal_solution" as a concise explanation of the fastest or cleanest method.
 
 Return only valid JSON in this shape:
 {
@@ -78,8 +76,7 @@ Return only valid JSON in this shape:
   "photo_solution_correct": true,
   "feedback": "...",
   "mistakes": ["..."],
-  "guided_solution": "...",
-  "optimal_solution": "..."
+  "guided_solution": "..."
 }
 
 Do not wrap the JSON in markdown.

@@ -8,15 +8,9 @@ export function InstructorAccountPanel() {
   return (
     <div className="grid gap-6">
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
-        <p className="text-sm font-semibold tracking-[0.16em] text-[#526b5c] uppercase">
-          Account
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           Account settings
         </h1>
-        <p className="mt-2 text-sm leading-7 text-slate-700">
-          Basic account details for this instructor workspace.
-        </p>
       </section>
 
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">

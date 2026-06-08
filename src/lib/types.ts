@@ -116,7 +116,6 @@ export type GradingFeedback = {
   feedback: string;
   mistakes: string[];
   guided_solution: string;
-  optimal_solution: string;
   debug_error?: string;
   debug_step?:
     | "gemini_grading"

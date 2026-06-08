@@ -42,8 +42,6 @@ function createFallbackFeedback(isCorrect: boolean): GradingFeedback {
       : ["AI feedback could not be generated for this problem."],
     guided_solution:
       "Use the instructor-approved solution and your work to review this problem manually.",
-    optimal_solution:
-      "Review the approved solution for the cleanest method until AI feedback is available.",
   };
 }
 

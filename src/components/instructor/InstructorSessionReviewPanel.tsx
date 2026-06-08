@@ -28,6 +28,8 @@ export function InstructorSessionReviewPanel({
   sessionId?: string;
 }) {
   const { profile } = useInstructorShell();
+  const [photoSize, setPhotoSize] = useState<"full" | "compact">("full");
+  const [photoRotations, setPhotoRotations] = useState<Record<string, number>>({});
   const [students, setStudents] = useState<AppUserProfile[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<StudentSessionSummary[]>([]);
   const [sessionProblems, setSessionProblems] = useState<SessionProblemWithProblem[]>([]);
@@ -120,6 +122,13 @@ export function InstructorSessionReviewPanel({
     [sessionId, sessionSummaries],
   );
 
+  function rotatePhoto(photoKey: string) {
+    setPhotoRotations((current) => ({
+      ...current,
+      [photoKey]: ((current[photoKey] ?? 0) + 90) % 360,
+    }));
+  }
+
   if (isLoading) {
     return (
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
@@ -151,17 +160,9 @@ export function InstructorSessionReviewPanel({
   return (
     <div className="grid gap-6">
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
-        <p className="text-sm font-semibold tracking-[0.16em] text-[#526b5c] uppercase">
-          Session review
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           {getDisplayName(selectedStudent)}
         </h1>
-        <p className="mt-2 text-sm leading-7 text-slate-700">
-          {selectedSummary
-            ? `Session from ${selectedSummary.session.sessionDate}.`
-            : "Choose a session from the left sidebar to inspect student work."}
-        </p>
       </section>
 
       {selectedSummary ? (
@@ -204,7 +205,33 @@ export function InstructorSessionReviewPanel({
       ) : null}
 
       <section className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-7 shadow-[0_20px_46px_-32px_rgba(50,44,35,0.35)]">
-        <h2 className="text-2xl font-semibold text-slate-950">Problems and solutions</h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-2xl font-semibold text-slate-950">Problems and solutions</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPhotoSize("full")}
+              className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                photoSize === "full"
+                  ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                  : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+              }`}
+            >
+              Full photos
+            </button>
+            <button
+              type="button"
+              onClick={() => setPhotoSize("compact")}
+              className={`border px-3 py-2 text-xs font-semibold tracking-[0.14em] uppercase ${
+                photoSize === "compact"
+                  ? "border-[#526b5c] bg-[rgba(239,247,241,0.92)] text-[#43594c]"
+                  : "border-stone-400 bg-[rgba(255,253,248,0.9)] text-slate-700"
+              }`}
+            >
+              Compact photos
+            </button>
+          </div>
+        </div>
         {sessionProblems.length === 0 ? (
           <p className="mt-4 text-sm text-slate-600">No problems found for this session.</p>
         ) : (
@@ -278,8 +305,24 @@ export function InstructorSessionReviewPanel({
                       {item.submission.solutionPhotoUrls.map((_, photoIndex) => (
                         <div
                           key={`${item.submission?.id ?? item.id}-photo-${photoIndex}`}
-                          className="overflow-hidden border border-stone-300 bg-[rgba(255,253,248,0.94)]"
+                          className={`border border-stone-300 bg-[rgba(255,253,248,0.94)] ${
+                            photoSize === "compact" ? "max-w-md" : ""
+                          }`}
                         >
+                          <div className="flex justify-end border-b border-stone-300 px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                rotatePhoto(
+                                  `${item.submission?.id ?? item.id}-photo-${photoIndex}`,
+                                )
+                              }
+                              className="border border-stone-400 bg-[rgba(255,253,248,0.9)] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-slate-700 uppercase transition hover:border-stone-500"
+                            >
+                              Rotate
+                            </button>
+                          </div>
+                          <div className="overflow-hidden">
                           <Image
                             src={getStudentSubmissionPhotoRoute(
                               item.id,
@@ -291,14 +334,19 @@ export function InstructorSessionReviewPanel({
                             width={1200}
                             height={1600}
                             unoptimized
-                            className="h-auto w-full object-contain"
+                            className={`object-contain transition-transform ${photoSize === "compact" ? "h-auto max-h-[28rem] w-full" : "h-auto w-full"}`}
+                            style={{
+                              transform: `rotate(${photoRotations[`${item.submission?.id ?? item.id}-photo-${photoIndex}`] ?? 0}deg)`,
+                              transformOrigin: "center",
+                            }}
                           />
+                        </div>
                         </div>
                       ))}
                     </div>
                   ) : null}
 
-                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div className="mt-4 grid gap-4">
                     <div className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-4">
                       <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
                         Guided solution
@@ -306,16 +354,6 @@ export function InstructorSessionReviewPanel({
                       <FormattedText
                         text={feedback?.guided_solution ?? item.problem.aiSolution ?? ""}
                         emptyText="No AI solution available."
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="border border-stone-300 bg-[rgba(255,253,248,0.94)] p-4">
-                      <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase">
-                        Optimal solution
-                      </p>
-                      <FormattedText
-                        text={feedback?.optimal_solution ?? item.problem.aiSolution ?? ""}
-                        emptyText="No optimal solution available."
                         className="mt-2"
                       />
                     </div>

@@ -250,10 +250,6 @@ export function InstructorUploadPanel({
           <h2 className="text-2xl font-semibold text-slate-950">
             Upload test files
           </h2>
-          <p className="text-sm leading-7 text-slate-700">
-            Upload mixed NUET test source files for later AI extraction. Allowed
-            file types: PDF, PNG, JPEG, and WEBP. Maximum size: 20 MB.
-          </p>
         </div>
 
         <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
@@ -285,9 +281,6 @@ export function InstructorUploadPanel({
             >
               {isUploading ? "Uploading..." : "Upload problem set"}
             </button>
-            <p className="text-sm text-slate-500">
-              AI extraction and review are now instructor-only steps.
-            </p>
           </div>
 
           {successMessage ? (
@@ -321,9 +314,6 @@ export function InstructorUploadPanel({
             <h2 className="text-2xl font-semibold text-slate-950">
               Recent uploads
             </h2>
-            <p className="mt-2 text-sm leading-7 text-slate-700">
-              Latest files uploaded by this instructor account.
-            </p>
           </div>
         </div>
 

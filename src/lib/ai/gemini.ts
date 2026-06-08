@@ -99,7 +99,6 @@ const gradingResponseJsonSchema = {
       items: { type: "string" },
     },
     guided_solution: { type: "string" },
-    optimal_solution: { type: "string" },
   },
   required: [
     "is_correct",
@@ -107,7 +106,6 @@ const gradingResponseJsonSchema = {
     "feedback",
     "mistakes",
     "guided_solution",
-    "optimal_solution",
   ],
 };
 

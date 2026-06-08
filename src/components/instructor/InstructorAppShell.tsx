@@ -262,7 +262,7 @@ export function InstructorAppShell({
     <InstructorShellProvider value={{ profile }}>
       <div className="min-h-screen bg-[#111111] text-stone-100">
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <aside className="w-full shrink-0 border-b border-stone-800 bg-[#0c0c0c] lg:w-[320px] lg:border-r lg:border-b-0">
+          <aside className="w-full shrink-0 border-b border-stone-800 bg-[#0c0c0c] lg:sticky lg:top-0 lg:h-screen lg:w-[320px] lg:self-start lg:border-r lg:border-b-0">
             <div className="border-b border-stone-800 px-5 py-5">
               <Link href={`${ROUTES.instructor}/students`} className="text-xl font-semibold tracking-tight">
                 Instructor
@@ -330,11 +330,9 @@ export function InstructorAppShell({
                     ) : null}
 
                     {isSidebarLoading && selectedSidebarStudentId ? (
-                      <p className="px-2 text-xs text-stone-500">Loading sessions...</p>
+                      <p className="px-2 text-xs text-stone-500">Loading...</p>
                     ) : !selectedSidebarStudentId ? (
-                      <p className="px-2 text-xs text-stone-500">
-                        Choose a connected student to review sessions.
-                      </p>
+                      <p className="px-2 text-xs text-stone-500">No student selected.</p>
                     ) : sessionSummaries.length === 0 ? (
                       <p className="px-2 text-xs text-stone-500">No sessions yet.</p>
                     ) : (

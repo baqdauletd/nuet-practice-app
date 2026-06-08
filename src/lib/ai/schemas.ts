@@ -25,7 +25,6 @@ export const gradingFeedbackSchema = z.object({
   feedback: z.string().min(1, "feedback is required"),
   mistakes: z.array(z.string()).default([]),
   guided_solution: z.string().min(1, "guided_solution is required"),
-  optimal_solution: z.string().min(1, "optimal_solution is required"),
 });
 
 function stripCodeFences(input: string) {

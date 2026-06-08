@@ -856,10 +856,6 @@ export function ProblemReviewPanel({
             <h2 className="mt-3 text-2xl font-semibold text-slate-950">
               {upload.originalFilename}
             </h2>
-            <p className="mt-2 text-sm leading-7 text-slate-700">
-              Review, edit, and approve extracted Math problems before they can
-              be used later in student practice.
-            </p>
           </div>
           <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-slate-600 uppercase">
             {upload.status}
@@ -916,10 +912,6 @@ export function ProblemReviewPanel({
           <h3 className="text-xl font-semibold text-slate-950">
             No extracted problems yet.
           </h3>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            If this upload is still marked as uploaded or failed, return to the
-            instructor dashboard and run extraction first.
-          </p>
         </section>
       ) : (
         <div className="grid gap-5">
