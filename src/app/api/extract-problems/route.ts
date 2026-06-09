@@ -102,22 +102,35 @@ export async function POST(request: Request) {
           continue;
         }
 
-        const pageNumber = problem.source_page ?? 1;
-        let sourceImageUrl = snapshotKeysByPage.get(pageNumber);
+        try {
+          const pageNumber = problem.source_page ?? 1;
+          let sourceImageUrl = snapshotKeysByPage.get(pageNumber);
 
-        if (sourceImageUrl === undefined) {
-          sourceImageUrl = await createProblemSourceImage({
-            uploadId,
-            uploadBytes: fileBytes,
-            uploadFilename: sourceFile.originalFilename,
-            uploadStorageKey: sourceFile.storageKey,
-            sourcePage: pageNumber,
-          });
-          snapshotKeysByPage.set(pageNumber, sourceImageUrl);
-        }
+          if (sourceImageUrl === undefined) {
+            sourceImageUrl = await createProblemSourceImage({
+              uploadId,
+              uploadBytes: fileBytes,
+              uploadFilename: sourceFile.originalFilename,
+              uploadStorageKey: sourceFile.storageKey,
+              sourcePage: pageNumber,
+            });
+            snapshotKeysByPage.set(pageNumber, sourceImageUrl);
+          }
 
-        if (sourceImageUrl) {
-          await updateProblemSourceImage(insertedProblem.id, sourceImageUrl);
+          if (sourceImageUrl) {
+            await updateProblemSourceImage(insertedProblem.id, sourceImageUrl);
+          }
+        } catch (error) {
+          logRouteError(
+            "Problem source image generation failed; continuing without snapshot.",
+            error,
+            {
+              uploadId,
+              problemId: insertedProblem.id,
+              sourceFile: sourceFile.originalFilename,
+              sourcePage: problem.source_page,
+            },
+          );
         }
       }
     }
